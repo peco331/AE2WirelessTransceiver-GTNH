@@ -1,0 +1,31 @@
+{
+  "modListVersion": 2,
+  "modList": [
+    {
+      "modid": "${modId}",
+      "name": "${modName}",
+      "description": "Adds the Wireless Transceiver and Labeled Wireless Transceiver from ExtendedAE_Plus to GTNH: bridge ME channels wirelessly across dimensions.",
+      "version": "${modVersion}",
+      "mcversion": "${minecraftVersion}",
+      "url": "",
+      "updateUrl": "",
+      "authorList": [
+        "GTNH Community Port"
+      ],
+      "credits": "Original design by GaLicn (ExtendedAE_Plus)",
+      "logoFile": "",
+      "screenshots": [],
+      "parent": "",
+      "requiredMods": [
+        "appliedenergistics2",
+        "gregtech"
+      ],
+      "dependencies": [
+        "appliedenergistics2",
+        "gregtech"
+      ],
+      "dependants": [],
+      "useDependencyInformation": true
+    }
+  ]
+}
