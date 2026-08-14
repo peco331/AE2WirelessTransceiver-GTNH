@@ -46,10 +46,10 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
     private IIcon[] topIcons;
 
     @SideOnly(Side.CLIENT)
-    private IIcon[] masterSideIcons;
+    private IIcon[] slaveSideIcons;
 
     @SideOnly(Side.CLIENT)
-    private IIcon[] masterTopIcons;
+    private IIcon[] slaveTopIcons;
 
     @SideOnly(Side.CLIENT)
     private IIcon itemIcon;
@@ -262,33 +262,34 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         itemIcon = reg.registerIcon("ae2wtx:wireless_transceiver");
         sideIcons = new IIcon[6];
         topIcons = new IIcon[6];
-        masterSideIcons = new IIcon[6];
-        masterTopIcons = new IIcon[6];
+        slaveSideIcons = new IIcon[6];
+        slaveTopIcons = new IIcon[6];
         for (int i = 0; i < 6; i++) {
+            // master: original EAEP blue textures (metadata 6-11)
             sideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i);
             topIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i + "_top");
-            // master (yellow) variant: metadata 6-11
-            masterSideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_master_" + i);
-            masterTopIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_master_" + i + "_top");
+            // slave: orange variant, only the blue pixels recolored (metadata 0-5)
+            slaveSideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_slave_" + i);
+            slaveTopIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_slave_" + i + "_top");
         }
     }
 
     @Override
     @SideOnly(Side.CLIENT)
     public IIcon getIcon(int side, int meta) {
-        // meta 0-5: slave (blue), meta 6-11: master (yellow) - EAEP state texture
+        // meta 0-5: slave (orange), meta 6-11: master (original blue)
         boolean master = meta >= 6;
         int state = master ? meta - 6 : meta;
         state = Math.max(0, Math.min(5, state));
         if (master) {
             if (side == 0 || side == 1) {
-                return masterTopIcons[state];
+                return topIcons[state];
             }
-            return masterSideIcons[state];
+            return sideIcons[state];
         }
         if (side == 0 || side == 1) {
-            return topIcons[state];
+            return slaveTopIcons[state];
         }
-        return sideIcons[state];
+        return slaveSideIcons[state];
     }
 }
