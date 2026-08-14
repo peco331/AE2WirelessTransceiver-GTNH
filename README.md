@@ -57,7 +57,11 @@ VERSION=1.0.1 gradlew reobfJar
 
 **第三方组件声明**：Applied Energistics 2（AE2, MIT License）、GregTech 5 Unofficial、SpongePowered Mixin（MIT License）、ExtendedAE_Plus（LGPL-3.0）。各组件版权归其原作者所有。
 
-## 贡献者 Contributors
+## 作者 Author
 
-- [peco331](https://github.com/peco331) — 项目作者与维护
-- DeepSeek AI — AI 辅助开发
+- [peco331](https://github.com/peco331) — 项目发起、设计与维护（Author & maintainer）
+
+## 致谢 Credits
+
+- [GaLicn](https://github.com/GaLicn/ExtendedAE_Plus) — ExtendedAE_Plus 原作者（LGPL-3.0）
+- DeepSeek AI — AI 编码辅助（AI-assisted development）
