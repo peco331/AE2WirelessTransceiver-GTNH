@@ -21,9 +21,15 @@ import cn.gtnh.ae2wtx.wireless.DeviceWirelessLinkManager;
 @Mixin(value = PartStorageBus.class, remap = false)
 public abstract class StorageBusChannelCardMixin {
 
+    @org.spongepowered.asm.mixin.Unique
+    private int ae2wtx$tickCounter = 0;
+
     @Inject(method = "tickingRequest", at = @At("HEAD"), remap = false)
     private void ae2wtx$channelCardLink(IGridNode node, int ticksSinceLastCall,
         CallbackInfoReturnable<TickRateModulation> cir) {
+        if (ae2wtx$tickCounter++ % 400 == 0) {
+            cn.gtnh.ae2wtx.AE2Wtx.LOG.info("CardLinkMixin tick: PartStorageBus");
+        }
         PartStorageBus self = (PartStorageBus) (Object) this;
         TileEntity tile = self.getTile();
         if (tile == null || tile.isInvalid() || tile.getWorldObj() == null || tile.getWorldObj().isRemote) {
