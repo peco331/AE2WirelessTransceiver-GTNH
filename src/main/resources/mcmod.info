@@ -4,7 +4,7 @@
     {
       "modid": "${modId}",
       "name": "${modName}",
-      "description": "Adds the Wireless Transceiver and Labeled Wireless Transceiver from ExtendedAE_Plus to GTNH: bridge ME channels wirelessly across dimensions.",
+      "description": "Wireless Transceiver for GTNH 2.9.0-beta1: a GTNH 1.7.10 port of the wireless transceiver from ExtendedAE_Plus (LGPL-3.0). Bridges ME channels wirelessly via named bands (labels), with in-GUI band management, wrench lock, Waila integration, anti channel-bleed and an in-game config screen.",
       "version": "${modVersion}",
       "mcversion": "${minecraftVersion}",
       "url": "",
@@ -12,7 +12,7 @@
       "authorList": [
         "GTNH Community Port"
       ],
-      "credits": "Original design by GaLicn (ExtendedAE_Plus)",
+      "credits": "Original design by GaLicn (ExtendedAE_Plus), licensed under LGPL-3.0",
       "logoFile": "",
       "screenshots": [],
       "parent": "",
