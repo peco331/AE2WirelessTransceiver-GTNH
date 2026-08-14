@@ -72,6 +72,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             firstTickDone = true;
             if (node == null) {
                 node = AEApi.instance().createGridNode(this);
+                node.updateState();
             }
             // Re-apply mode & frequency after (re)load.
             if (masterMode) {
