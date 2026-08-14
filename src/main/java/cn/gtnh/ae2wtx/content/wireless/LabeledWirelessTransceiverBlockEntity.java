@@ -56,7 +56,15 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public void updateEntity() {
-        if (worldObj == null || worldObj.isRemote) {
+        if (worldObj == null) {
+            return;
+        }
+        if (worldObj.isRemote) {
+            // CLIENT-side AE2 grid simulation: AE2 renders cable activation /
+            // connection visuals from the client's local grid. Native AE2
+            // machines run this themselves; we must too, otherwise the cable
+            // never shows the connected appearance at the transceiver.
+            updateClientGrid();
             return;
         }
         if (!firstTickDone) {
@@ -80,6 +88,15 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         labelLink.updateStatus();
         updateNetworkChannelStats();
         updateVisualState();
+    }
+
+    /** Client-side grid join: create node, update state, link adjacent hosts. */
+    private void updateClientGrid() {
+        if (node == null) {
+            node = AEApi.instance().createGridNode(this);
+        }
+        node.updateState();
+        maintainLocalConnections();
     }
 
     private long lastSecurityKey = Long.MIN_VALUE;
@@ -188,7 +205,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 // the same fix the label link uses.
                 alignSecurityKey(node, other);
                 AEApi.instance().createGridConnection(node, other);
-                AE2Wtx.LOG.info("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
+                AE2Wtx.LOG.debug("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
                 // The cable did NOT create this connection, so its CableBus
                 // visual state (connected endpoints) never refreshed. Force it
