@@ -73,7 +73,7 @@ public class LabelListRequestPacket implements IMessage {
                     ? null
                     : reg.getNetwork(world, lte.getLabelForDisplay(), lte.getPlacerId());
                 if (net != null) {
-                    onlineCount = net.endpointCount();
+                    onlineCount = net.onlineEndpointCount();
                     maxChannels = lte.getMaxChannelsForDisplay();
                     networkChannels = net.totalUsedChannels();
                     usedChannels = lte.getUsedChannelsForDisplay();

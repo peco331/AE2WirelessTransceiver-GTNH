@@ -320,6 +320,32 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
 
         /**
+         * Number of transceivers in this band that are ACTUALLY online
+         * (tile exists and its label link is connected). Stale endpoint refs
+         * are skipped, unlike {@link #endpointCount()}.
+         */
+        public int onlineEndpointCount() {
+            MinecraftServer server = MinecraftServer.getServer();
+            if (server == null || server.worldServers == null) {
+                return 0;
+            }
+            int online = 0;
+            for (EndpointRef ref : endpoints) {
+                World w = server.worldServerForDimension(ref.dim);
+                if (w == null) {
+                    continue;
+                }
+                net.minecraft.tileentity.TileEntity te = w.getTileEntity(ref.x, ref.y, ref.z);
+                if (te instanceof cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) {
+                    if (((cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) te).isOnline()) {
+                        online++;
+                    }
+                }
+            }
+            return online;
+        }
+
+        /**
          * Sum of the channels currently used by all endpoints of this label
          * network (server-side only). Endpoints whose tile is gone or not a
          * transceiver are skipped (stale refs). Gives players a view of the

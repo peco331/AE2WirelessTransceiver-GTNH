@@ -73,6 +73,9 @@ public class WailaProvider implements IWailaDataProvider {
                 netVal = net + "/" + max;
             }
             currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.channels_network_label") + netVal);
+            // transceivers online in this band
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.band_online",
+                lte.getOnlineCountForDisplay()));
             currenttip.add(StatCollector.translateToLocal(
                 lte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
                     : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));

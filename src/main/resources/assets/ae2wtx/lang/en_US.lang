@@ -18,6 +18,7 @@ extendedae_plus.jade.frequency=Band: %s
 extendedae_plus.jade.channels=Channels: %s
 extendedae_plus.jade.channels_of=Channels: %s/%s
 extendedae_plus.jade.channels_network_label=Band Channels: 
+extendedae_plus.jade.band_online=Online: %s
 extendedae_plus.jade.owner=Owner: %s
 extendedae_plus.jade.owner.public=Public
 extendedae_plus.jade.online=Device Online

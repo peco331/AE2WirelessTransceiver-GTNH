@@ -373,47 +373,76 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return serverUsedCache;
     }
 
+    /**
+     * Real device demand count. Block-level BFS over the local cable network:
+     * <ul>
+     * <li>TileCableBus (cable/multipart block): every part whose grid node
+     *     carries the REQUIRE_CHANNEL flag is a channel consumer (interface,
+     *     bus, terminal, P2P...). Cable anchors / quartz fiber have no such
+     *     flag and never count - plain cable adds nothing.</li>
+     * <li>standalone IGridHost: one channel consumer if REQUIRE_CHANNEL, not
+     *     expanded.</li>
+     * <li>transceivers and ME controllers: skipped (controller stops walk).</li>
+     * </ul>
+     * Devices that could not get a channel ("device missing channel") still
+     * carry REQUIRE_CHANNEL, so they are included - over capacity naturally
+     * shows as 32+x/32 without any allocation/power-state logic.
+     */
     private int countLocalDevicePaths() {
-        java.util.Set<IGridNode> visited = new java.util.HashSet<>();
-        java.util.ArrayDeque<IGridNode> stack = new java.util.ArrayDeque<>();
-        visited.add(node);
-        stack.push(node);
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+        visited.add(encodePos(xCoord, yCoord, zCoord));
+        queue.add(new int[] { xCoord, yCoord, zCoord });
         int devices = 0;
-        while (!stack.isEmpty()) {
-            IGridNode n = stack.pop();
-            for (IGridConnection c : n.getConnections()) {
-                IGridNode other = c.a() == n ? c.b() : c.a();
-                if (other == null || visited.contains(other)) {
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+                int nx = cur[0] + dir.offsetX;
+                int ny = cur[1] + dir.offsetY;
+                int nz = cur[2] + dir.offsetZ;
+                if (!visited.add(encodePos(nx, ny, nz))) {
                     continue;
                 }
-                if (isSkippedNeighbor(other)) {
+                TileEntity te = worldObj.getTileEntity(nx, ny, nz);
+                if (te == null || te == this) {
                     continue;
                 }
-                visited.add(other);
-                if (other.getConnections().size() <= 1) {
-                    devices++; // leaf device (machine / bus / interface)
-                } else {
-                    stack.push(other); // cable junction - keep walking
+                if (te instanceof LabeledWirelessTransceiverBlockEntity) {
+                    continue; // never count other transceivers
+                }
+                if (te instanceof appeng.tile.networking.TileController) {
+                    continue; // controller anchor: stop walking the network
+                }
+                if (te instanceof appeng.tile.networking.TileCableBus) {
+                    appeng.tile.networking.TileCableBus bus = (appeng.tile.networking.TileCableBus) te;
+                    for (ForgeDirection pd : ForgeDirection.VALID_DIRECTIONS) {
+                        appeng.api.parts.IPart part = bus.getPart(pd);
+                        if (part == null || part instanceof appeng.parts.networking.PartCable) {
+                            continue;
+                        }
+                        if (isChannelConsumer(part.getGridNode())) {
+                            devices++;
+                        }
+                    }
+                    queue.add(new int[] { nx, ny, nz }); // keep walking the cable network
+                } else if (te instanceof IGridHost) {
+                    if (isChannelConsumer(((IGridHost) te).getGridNode(ForgeDirection.UNKNOWN))) {
+                        devices++;
+                    }
                 }
             }
         }
         return devices;
     }
 
-    /** Wireless link to the label virtual node, or an ME controller anchor. */
-    private boolean isSkippedNeighbor(IGridNode other) {
-        try {
-            Object machine = other.getGridBlock() == null ? null : other.getGridBlock().getMachine();
-            if (machine instanceof cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry.VirtualLabelNodeHost) {
-                return true;
-            }
-            if (machine instanceof appeng.tile.networking.TileController) {
-                return true;
-            }
-        } catch (Throwable t) {
-            // defensive: never break the display path
-        }
-        return false;
+    /** True when the node is a channel consumer (machine/bus/interface/...). */
+    private static boolean isChannelConsumer(IGridNode gn) {
+        return gn instanceof appeng.me.GridNode
+            && ((appeng.me.GridNode) gn).hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
+    }
+
+    private static long encodePos(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (y & 0xFFF) << 26) | (z & 0x3FFFFFF);
     }
 
     public int getMaxChannelsForDisplay() {
@@ -441,6 +470,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     /* ===================== whole-network channel stats (Waila) ===================== */
 
     private int networkChannelsSync = 0;
+    private int onlineCountSync = 0;
     private int netStatsTick = 0;
 
     /** Total channels used by ALL endpoints of this label (server-side, throttled). */
@@ -453,17 +483,20 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
         netStatsTick = 0;
         int total = 0;
+        int online = 0;
         if (labelForDisplay != null && !labelForDisplay.isEmpty()) {
             LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
             if (reg != null) {
                 LabelNetworkRegistry.LabelNetwork net = reg.getNetwork(worldObj, labelForDisplay, placerId);
                 if (net != null) {
                     total = net.totalUsedChannels();
+                    online = net.onlineEndpointCount();
                 }
             }
         }
-        if (total != networkChannelsSync) {
+        if (total != networkChannelsSync || online != onlineCountSync) {
             networkChannelsSync = total;
+            onlineCountSync = online;
             syncToClients();
         }
     }
@@ -471,6 +504,11 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     /** Total channels used by all endpoints of this label (Waila display). */
     public int getNetworkChannelsForDisplay() {
         return networkChannelsSync;
+    }
+
+    /** Number of transceivers online in this band (Waila display). */
+    public int getOnlineCountForDisplay() {
+        return onlineCountSync;
     }
 
     public void applyLabel(String rawLabel) {
@@ -591,6 +629,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         tag.setInteger("maxCh", maxChannelsSync);
         tag.setBoolean("locked", locked);
         tag.setInteger("netCh", networkChannelsSync);
+        tag.setInteger("netOn", onlineCountSync);
         if (labelForDisplay != null) {
             tag.setString("label", labelForDisplay);
         }
@@ -642,6 +681,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.maxChannelsSync = tag.getInteger("maxCh");
         this.locked = tag.getBoolean("locked");
         this.networkChannelsSync = tag.getInteger("netCh");
+        this.onlineCountSync = tag.getInteger("netOn");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
         this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;
