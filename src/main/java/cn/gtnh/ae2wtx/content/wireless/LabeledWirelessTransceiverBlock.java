@@ -93,8 +93,8 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        iconOff = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_off");
-        iconOn = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_on");
+        iconOff = reg.registerIcon("ae2wtx:block/wireless_transceiver/lable_wireless_transceiver_off");
+        iconOn = reg.registerIcon("ae2wtx:block/wireless_transceiver/lable_wireless_transceiver_on");
     }
 
     @Override

@@ -4,6 +4,7 @@ tile.ae2wtx.labeled_wireless_transceiver.name=标签无线收发器
 item.ae2wtx.channel_card.name=频道卡
 
 # ---- ExtendedAE_Plus key parity (zh_cn) ----
+block.extendedae_plus.labeled_wireless_transceiver=标签无线收发器
 extendedae_plus.chat.wireless_transceiver.locked=收发器已锁定，无法修改
 extendedae_plus.chat.wireless_transceiver.locked_status=已锁定收发器
 extendedae_plus.chat.wireless_transceiver.unlocked_status=已解锁收发器

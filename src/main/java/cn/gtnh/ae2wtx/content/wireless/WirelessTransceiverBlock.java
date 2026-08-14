@@ -71,6 +71,27 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         return false;
     }
 
+    /**
+     * True when the held item is an AE2 wrench (Certus Quartz or Nether Quartz
+     * wrench). Matches AE2 vanilla behavior where these can rotate/disassemble.
+     */
+    public static boolean isAE2Wrench(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        Item certus = appeng.api.AEApi.instance().items().itemCertusQuartzWrench.item();
+        if (certus != null && stack.getItem() == certus) {
+            return true;
+        }
+        Item nether = appeng.api.AEApi.instance().items().itemNetherQuartzWrench.item();
+        return nether != null && stack.getItem() == nether;
+    }
+
+    /** Any wrench (GT ore-dict wrench or AE2 quartz wrench). */
+    public static boolean isWrench(ItemStack stack) {
+        return isGTWrench(stack) || isAE2Wrench(stack);
+    }
+
     public static boolean isQuartzKnife(ItemStack stack) {
         if (stack == null || stack.getItem() == null) {
             return false;
@@ -82,7 +103,8 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
     private static int getStep(ItemStack held) {
         if (held != null && held.getItem() != null) {
             Item heldItem = held.getItem();
-            if (heldItem == Item.getItemFromBlock(Blocks.redstone_torch) || heldItem == Item.getItemFromBlock(Blocks.torch)) {
+            // matches EAEP: redstone torch or stick -> step 10
+            if (heldItem == Item.getItemFromBlock(Blocks.redstone_torch) || heldItem == net.minecraft.init.Items.stick) {
                 return 10;
             }
         }
@@ -114,7 +136,7 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         WirelessTransceiverBlockEntity wte = (WirelessTransceiverBlockEntity) te;
         ItemStack held = player.getHeldItem();
         boolean sneaking = player.isSneaking();
-        boolean wrench = isGTWrench(held);
+        boolean wrench = isWrench(held);
 
         // wrench + sneaking: disassemble into inventory (matches EAEP disassemble behavior)
         if (wrench && sneaking) {
@@ -172,7 +194,7 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         boolean sneaking = player.isSneaking();
 
         // wrench + sneaking: open frequency input screen (client side)
-        if (sneaking && isGTWrench(held)) {
+        if (sneaking && isWrench(held)) {
             if (world.isRemote) {
                 cn.gtnh.ae2wtx.AE2Wtx.proxy.openFrequencyScreen(x, y, z, wte.getFrequency());
             }
@@ -255,12 +277,12 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        itemIcon = reg.registerIcon("ae2wtx:wireless_transceiver");
+        itemIcon = reg.registerIcon("ae2wtx:block/wireless_transceiver");
         sideIcons = new IIcon[6];
         topIcons = new IIcon[6];
         for (int i = 0; i < 6; i++) {
-            sideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i);
-            topIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i + "_top");
+            sideIcons[i] = reg.registerIcon("ae2wtx:block/wireless_transceiver/wireless_transceiver_" + i);
+            topIcons[i] = reg.registerIcon("ae2wtx:block/wireless_transceiver/wireless_transceiver_" + i + "_top");
         }
     }
 

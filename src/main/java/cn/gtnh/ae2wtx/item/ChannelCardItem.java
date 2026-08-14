@@ -138,7 +138,7 @@ public class ChannelCardItem extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void registerIcons(IIconRegister reg) {
-        icon = reg.registerIcon("ae2wtx:channel_card");
+        icon = reg.registerIcon("ae2wtx:items/channel_card");
     }
 
     @Override

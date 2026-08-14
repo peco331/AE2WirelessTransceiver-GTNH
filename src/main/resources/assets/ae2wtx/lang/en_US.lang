@@ -4,6 +4,7 @@ tile.ae2wtx.labeled_wireless_transceiver.name=Labeled Wireless Transceiver
 item.ae2wtx.channel_card.name=Channel Card
 
 # ---- ExtendedAE_Plus key parity (en_us) ----
+block.extendedae_plus.labeled_wireless_transceiver=Labeled Wireless Transceiver
 extendedae_plus.chat.wireless_transceiver.locked=Transceiver locked, cannot modify
 extendedae_plus.chat.wireless_transceiver.locked_status=Transceiver Locked
 extendedae_plus.chat.wireless_transceiver.unlocked_status=Transceiver Unlocked

@@ -263,8 +263,10 @@ public class LabeledTransceiverGui extends GuiContainer {
     }
 
     private void drawButtonTexts() {
-        int startX = guiLeft + 145;
-        int startY = guiTop + 101;
+        // foreground layer is already translated to the GUI origin, so these
+        // are RELATIVE coordinates (matching the button positions in initGui)
+        int startX = 145;
+        int startY = 101;
         int hGap = 30;
         int vGap = 8;
         int secondColX = startX + BTN_W + hGap;
