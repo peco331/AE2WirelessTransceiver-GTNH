@@ -56,15 +56,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public void updateEntity() {
-        if (worldObj == null) {
-            return;
-        }
-        if (worldObj.isRemote) {
-            // CLIENT-side AE2 grid simulation: AE2 renders cable activation /
-            // connection visuals from the client's local grid. Native AE2
-            // machines run this themselves; we must too, otherwise the cable
-            // never shows the connected appearance at the transceiver.
-            updateClientGrid();
+        if (worldObj == null || worldObj.isRemote) {
+            // NOTE: rv3 forbids createGridNode() on the client ("Grid features
+            // are server side only") - never build a client-side grid here.
             return;
         }
         if (!firstTickDone) {
@@ -88,15 +82,6 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         labelLink.updateStatus();
         updateNetworkChannelStats();
         updateVisualState();
-    }
-
-    /** Client-side grid join: create node, update state, link adjacent hosts. */
-    private void updateClientGrid() {
-        if (node == null) {
-            node = AEApi.instance().createGridNode(this);
-        }
-        node.updateState();
-        maintainLocalConnections();
     }
 
     private long lastSecurityKey = Long.MIN_VALUE;
@@ -208,11 +193,16 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 AE2Wtx.LOG.debug("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
                 // The cable did NOT create this connection, so its CableBus
-                // visual state (connected endpoints) never refreshed. Force it
-                // so the cable shows the joined appearance immediately.
-                if (te instanceof appeng.api.parts.IPartHost) {
+                // visual state (connected endpoints) never refreshed. Recompute
+                // connections, push part state to the client and notify
+                // neighbors so the cable shows the joined appearance.
+                if (te instanceof appeng.tile.networking.TileCableBus) {
                     try {
-                        ((appeng.api.parts.IPartHost) te).partChanged();
+                        appeng.parts.CableBusContainer cb =
+                            ((appeng.tile.networking.TileCableBus) te).getCableBus();
+                        cb.updateConnections();
+                        cb.markForUpdate();
+                        ((appeng.tile.networking.TileCableBus) te).partChanged();
                     } catch (Throwable ignored) {
                         // visual only - never break the connection path
                     }
