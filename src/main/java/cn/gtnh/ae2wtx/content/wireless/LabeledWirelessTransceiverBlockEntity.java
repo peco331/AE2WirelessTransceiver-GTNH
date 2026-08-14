@@ -357,14 +357,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     /**
-     * Channel usage for Waila/GUI display. rv3 SATURATES its channel counters
-     * at the node capacity (PathingCalculation.tryUseChannel stops granting
-     * channels past maxChannels), so AE's own values can never show "32+x".
-     * Instead we count the real device demand: BFS over the local grid from
-     * this node, counting leaf devices (nodes with a single connection), while
-     * skipping the wireless label-link connection and ME controllers.
-     * Server-side reads the throttled cache (serverUsedCache) so repeated
-     * callers (Waila requests, whole-band stats) never trigger the BFS.
+     * Channel usage for Waila/GUI display (server side reads the throttled
+     * cache; the cache = AE allocated channels + missing-channel devices).
      */
     public int getUsedChannelsForDisplay() {
         if (worldObj != null && worldObj.isRemote) {
@@ -374,26 +368,36 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     /**
-     * Real device demand count. Block-level BFS over the local cable network:
-     * <ul>
-     * <li>TileCableBus (cable/multipart block): every part whose grid node
-     *     carries the REQUIRE_CHANNEL flag is a channel consumer (interface,
-     *     bus, terminal, P2P...). Cable anchors / quartz fiber have no such
-     *     flag and never count - plain cable adds nothing.</li>
-     * <li>standalone IGridHost: one channel consumer if REQUIRE_CHANNEL, not
-     *     expanded.</li>
-     * <li>transceivers and ME controllers: skipped (controller stops walk).</li>
-     * </ul>
-     * Devices that could not get a channel ("device missing channel") still
-     * carry REQUIRE_CHANNEL, so they are included - over capacity naturally
-     * shows as 32+x/32 without any allocation/power-state logic.
+     * Original allocation-based count: max channels carried by this node's
+     * connections (AE saturates this at the node capacity, e.g. 32).
      */
-    private int countLocalDevicePaths() {
+    private int allocatedChannels() {
+        if (node == null) {
+            return 0;
+        }
+        int used = 0;
+        for (IGridConnection c : node.getConnections()) {
+            used = Math.max(c.getUsedChannels(), used);
+        }
+        return used;
+    }
+
+    /**
+     * How many channel consumers in the local network could NOT get a channel
+     * ("device missing channel") - this is the "over capacity" part (x in
+     * 32+x/32). Block-level BFS; machines are EXPANDED too, so chains of
+     * adjacent machines (e.g. several Dual ME Interfaces in a row) all count.
+     * Only counted while the local grid is powered.
+     */
+    private int countMissingChannels() {
+        if (!isLocalGridPowered()) {
+            return 0;
+        }
         java.util.Set<Long> visited = new java.util.HashSet<>();
         java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
         visited.add(encodePos(xCoord, yCoord, zCoord));
         queue.add(new int[] { xCoord, yCoord, zCoord });
-        int devices = 0;
+        int missing = 0;
         while (!queue.isEmpty()) {
             int[] cur = queue.poll();
             for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
@@ -420,25 +424,61 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                         if (part == null || part instanceof appeng.parts.networking.PartCable) {
                             continue;
                         }
-                        if (isChannelConsumer(part.getGridNode())) {
-                            devices++;
+                        if (isMissingChannel(part.getGridNode(), node)) {
+                            missing++;
                         }
                     }
-                    queue.add(new int[] { nx, ny, nz }); // keep walking the cable network
+                    queue.add(new int[] { nx, ny, nz }); // keep walking
                 } else if (te instanceof IGridHost) {
-                    if (isChannelConsumer(((IGridHost) te).getGridNode(ForgeDirection.UNKNOWN))) {
-                        devices++;
+                    if (isMissingChannel(((IGridHost) te).getGridNode(ForgeDirection.UNKNOWN), node)) {
+                        missing++;
                     }
+                    // machines expand too: adjacent machine chains (Dual ME
+                    // Interfaces in a row) must all be visited
+                    queue.add(new int[] { nx, ny, nz });
                 }
             }
         }
-        return devices;
+        return missing;
     }
 
-    /** True when the node is a channel consumer (machine/bus/interface/...). */
-    private static boolean isChannelConsumer(IGridNode gn) {
-        return gn instanceof appeng.me.GridNode
-            && ((appeng.me.GridNode) gn).hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
+    /** True when the node wants a channel but got none (missing-channel state). */
+    private static boolean isMissingChannel(IGridNode gn, IGridNode selfNode) {
+        if (gn instanceof appeng.me.GridNode) {
+            appeng.me.GridNode g = (appeng.me.GridNode) gn;
+            if (!g.hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL)) {
+                return false;
+            }
+            if (g.getUsedChannels() > 0) {
+                return false;
+            }
+            // only count nodes that belong to OUR grid - a physically adjacent
+            // machine of a DIFFERENT (separate) network must not be counted
+            if (selfNode == null || g.getGrid() == null || g.getGrid() != selfNode.getGrid()) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /** Powered AND not mid-boot (booting resets channel allocation). */
+    private boolean isLocalGridPowered() {
+        try {
+            IGrid grid = node == null ? null : node.getGrid();
+            if (grid == null) {
+                return false;
+            }
+            boolean powered = ((IEnergyGrid) grid.getCache(IEnergyGrid.class)).isNetworkPowered();
+            if (!powered) {
+                return false;
+            }
+            boolean booting = ((appeng.api.networking.pathing.IPathingGrid) grid
+                .getCache(appeng.api.networking.pathing.IPathingGrid.class)).isNetworkBooting();
+            return !booting;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     private static long encodePos(int x, int y, int z) {
@@ -585,13 +625,13 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             return;
         }
         boolean linkUp = labelLink != null && labelLink.isConnected();
-        // heavy work (BFS demand count + grid cache lookups) runs every 10 ticks;
+        // heavy work (channel counts + grid cache lookups) runs every 10 ticks;
         // linkUp check is a few field reads, safe every tick
         if (++usedCalcTick < 10) {
             return;
         }
         usedCalcTick = 0;
-        serverUsedCache = node == null ? 0 : countLocalDevicePaths();
+        serverUsedCache = allocatedChannels() + countMissingChannels();
         int max = 32;
         if (node instanceof appeng.me.GridNode) {
             max = ((appeng.me.GridNode) node).getMaxChannels();
