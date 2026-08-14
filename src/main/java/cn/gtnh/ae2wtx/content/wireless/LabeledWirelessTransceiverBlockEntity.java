@@ -358,6 +358,12 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     public int getMaxChannelsForDisplay() {
+        if (worldObj != null && worldObj.isRemote) {
+            return maxChannelsSync;
+        }
+        if (node instanceof appeng.me.GridNode) {
+            return ((appeng.me.GridNode) node).getMaxChannels();
+        }
         return 32;
     }
 
@@ -472,6 +478,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     private boolean onlineSync = false;
     private int channelsSync = 0;
+    private int maxChannelsSync = 32;
 
     private void updateVisualState() {
         if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
@@ -484,9 +491,14 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 used = Math.max(c.getUsedChannels(), used);
             }
         }
-        if (linkUp != onlineSync || used != channelsSync) {
+        int max = 32;
+        if (node instanceof appeng.me.GridNode) {
+            max = ((appeng.me.GridNode) node).getMaxChannels();
+        }
+        if (linkUp != onlineSync || used != channelsSync || max != maxChannelsSync) {
             onlineSync = linkUp;
             channelsSync = used;
+            maxChannelsSync = max;
             syncToClients();
         }
         IGridNode n = node;
@@ -513,6 +525,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         tag.setLong("frequency", frequency);
         tag.setBoolean("online", onlineSync);
         tag.setInteger("chSync", channelsSync);
+        tag.setInteger("maxCh", maxChannelsSync);
         tag.setBoolean("locked", locked);
         tag.setInteger("netCh", networkChannelsSync);
         if (labelForDisplay != null) {
@@ -563,6 +576,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.frequency = tag.getLong("frequency");
         this.onlineSync = tag.getBoolean("online");
         this.channelsSync = tag.getInteger("chSync");
+        this.maxChannelsSync = tag.getInteger("maxCh");
         this.locked = tag.getBoolean("locked");
         this.networkChannelsSync = tag.getInteger("netCh");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;

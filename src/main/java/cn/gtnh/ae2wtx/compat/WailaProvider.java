@@ -49,13 +49,30 @@ public class WailaProvider implements IWailaDataProvider {
                 currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
                     name != null ? name : owner.toString().substring(0, 8)));
             }
-            // channels used by THIS transceiver
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
-                lte.getUsedChannelsForDisplay(), lte.getMaxChannelsForDisplay()));
-            // channels used by ALL endpoints of this frequency (label), so the
-            // player can see how many channels remain on the whole network
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_network",
-                lte.getNetworkChannelsForDisplay(), lte.getMaxChannelsForDisplay()));
+            // channels used by THIS transceiver (denominator = capacity the ME
+            // network actually grants: 32 dense, infinite mode shows plain count)
+            int max = lte.getMaxChannelsForDisplay();
+            if (max <= 0 || max >= 1_000_000) {
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels",
+                    lte.getUsedChannelsForDisplay()));
+            } else {
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
+                    lte.getUsedChannelsForDisplay(), max));
+            }
+            // channels used by ALL endpoints of this frequency (label) - wording
+            // matches the GUI "本频段频道 x/y"; over capacity -> red, full -> yellow
+            int net = lte.getNetworkChannelsForDisplay();
+            String netVal;
+            if (max <= 0 || max >= 1_000_000) {
+                netVal = net + "/\u221E";
+            } else if (net > max) {
+                netVal = "\u00A7c" + net + "/" + max;
+            } else if (net == max) {
+                netVal = "\u00A7e" + net + "/" + max;
+            } else {
+                netVal = net + "/" + max;
+            }
+            currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.channels_network_label") + netVal);
             currenttip.add(StatCollector.translateToLocal(
                 lte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
                     : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));

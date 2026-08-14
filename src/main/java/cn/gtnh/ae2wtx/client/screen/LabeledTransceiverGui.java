@@ -63,6 +63,7 @@ public class LabeledTransceiverGui extends GuiContainer {
     private int onlineCount = 0;
     private int usedChannels = 0;
     private int maxChannels = 0;
+    private int networkChannels = 0;
 
     public LabeledTransceiverGui(LabeledContainer container, EntityPlayer player, int x, int y, int z) {
         super(container);
@@ -78,11 +79,12 @@ public class LabeledTransceiverGui extends GuiContainer {
     public void initGui() {
         super.initGui();
         Keyboard.enableRepeatEvents(true);
-        int sx = guiLeft + 134;
-        int sy = guiTop + 23;
-        searchBox = new GuiTextField(fontRendererObj, sx, sy, 116, 9);
+        // search box above the frequency list column (visible bordered box)
+        int sx = guiLeft + 9;
+        int sy = guiTop + 15;
+        searchBox = new GuiTextField(fontRendererObj, sx, sy, 110, 9);
         searchBox.setMaxStringLength(64);
-        searchBox.setEnableBackgroundDrawing(false);
+        searchBox.setEnableBackgroundDrawing(true);
         searchBox.setVisible(true);
         searchBox.setFocused(false);
         searchBox.setCanLoseFocus(true);
@@ -109,7 +111,7 @@ public class LabeledTransceiverGui extends GuiContainer {
     }
 
     public void updateList(List<LabelListResponsePacket.Entry> list, String currentLabel, String ownerName,
-        int usedChannels, int maxChannels, int onlineCount) {
+        int usedChannels, int maxChannels, int onlineCount, int networkChannels) {
         String prevSelected = getSelectedLabel();
         this.entries.clear();
         for (LabelListResponsePacket.Entry e : list) {
@@ -120,6 +122,7 @@ public class LabeledTransceiverGui extends GuiContainer {
         this.onlineCount = onlineCount;
         this.usedChannels = usedChannels;
         this.maxChannels = maxChannels;
+        this.networkChannels = networkChannels;
         if (prevSelected != null && !prevSelected.isEmpty()) {
             this.lastSelectedLabel = prevSelected;
         } else if (this.currentLabel != null && !this.currentLabel.isEmpty()) {
@@ -250,6 +253,11 @@ public class LabeledTransceiverGui extends GuiContainer {
         drawRect(guiLeft + 134, guiTop + 41, guiLeft + 250, guiTop + 93, 0x10FFFFFF);
 
         searchBox.drawTextBox();
+        if (searchBox.getText().isEmpty() && !searchBox.isFocused()) {
+            fontRendererObj.drawString(
+                StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.search"),
+                guiLeft + 11, guiTop + 17, 0x808080);
+        }
         renderList();
         renderScrollBar();
     }
@@ -313,10 +321,30 @@ public class LabeledTransceiverGui extends GuiContainer {
         String channelLine = maxChannels <= 0
             ? StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", usedChannels)
             : StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of", usedChannels, maxChannels);
+        // whole-frequency (label) usage across ALL endpoints; denominator is the
+        // real capacity granted by the ME network (32 dense, ∞ in infinite mode)
+        boolean infinite = maxChannels <= 0 || maxChannels >= 1_000_000;
+        String networkPrefix = StatCollector.translateToLocal("extendedae_plus.jade.channels_network_label");
+        String networkValue;
+        int networkColor = 0x404040;
+        if (infinite) {
+            networkValue = networkChannels + "/\u221E";
+        } else {
+            networkValue = networkChannels + "/" + maxChannels;
+            // over capacity -> red, exactly full -> yellow
+            if (networkChannels > maxChannels) {
+                networkColor = 0xE05555;
+            } else if (networkChannels == maxChannels) {
+                networkColor = 0xE0E055;
+            }
+        }
         drawScaledText(trim(labelLine), infoX, infoY, infoScale, 0x404040);
         drawScaledText(trim(ownerLine), infoX, infoY + 12, infoScale, 0x404040);
         drawScaledText(trim(onlineLine), infoX, infoY + 24, infoScale, 0x404040);
         drawScaledText(trim(channelLine), infoX, infoY + 36, infoScale, 0x404040);
+        drawScaledText(trim(networkPrefix), infoX, infoY + 48, infoScale, 0x404040);
+        drawScaledText(trim(networkValue), infoX + (int) (fontRendererObj.getStringWidth(networkPrefix) * infoScale),
+            infoY + 48, infoScale, networkColor);
     }
 
     private String trim(String text) {

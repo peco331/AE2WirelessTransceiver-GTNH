@@ -34,11 +34,12 @@ public class LabelListResponsePacket implements IMessage {
     private int onlineCount;
     private int usedChannels;
     private int maxChannels;
+    private int networkChannels;
 
     public LabelListResponsePacket() {}
 
     public LabelListResponsePacket(List<LabelNetworkRegistry.Snapshot> snapshots, String currentLabel, String ownerName,
-        int onlineCount, int usedChannels, int maxChannels) {
+        int onlineCount, int usedChannels, int maxChannels, int networkChannels) {
         for (LabelNetworkRegistry.Snapshot s : snapshots) {
             entries.add(new Entry(s.label, s.channel));
         }
@@ -47,6 +48,7 @@ public class LabelListResponsePacket implements IMessage {
         this.onlineCount = onlineCount;
         this.usedChannels = usedChannels;
         this.maxChannels = maxChannels;
+        this.networkChannels = networkChannels;
     }
 
     public List<Entry> getEntries() {
@@ -73,6 +75,10 @@ public class LabelListResponsePacket implements IMessage {
         return maxChannels;
     }
 
+    public int getNetworkChannels() {
+        return networkChannels;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
         int count = buf.readInt();
@@ -88,6 +94,7 @@ public class LabelListResponsePacket implements IMessage {
         onlineCount = buf.readInt();
         usedChannels = buf.readInt();
         maxChannels = buf.readInt();
+        networkChannels = buf.readInt();
     }
 
     private static String readString(ByteBuf buf) {
@@ -118,6 +125,7 @@ public class LabelListResponsePacket implements IMessage {
         buf.writeInt(onlineCount);
         buf.writeInt(usedChannels);
         buf.writeInt(maxChannels);
+        buf.writeInt(networkChannels);
     }
 
     public static class Handler implements IMessageHandler<LabelListResponsePacket, IMessage> {
@@ -129,7 +137,7 @@ public class LabelListResponsePacket implements IMessage {
                 if (Minecraft.getMinecraft().currentScreen instanceof LabeledTransceiverGui) {
                     ((LabeledTransceiverGui) Minecraft.getMinecraft().currentScreen)
                         .updateList(msg.getEntries(), msg.getCurrentLabel(), msg.getOwnerName(), msg.getUsedChannels(),
-                            msg.getMaxChannels(), msg.getOnlineCount());
+                            msg.getMaxChannels(), msg.getOnlineCount(), msg.getNetworkChannels());
                 }
             });
             return null;

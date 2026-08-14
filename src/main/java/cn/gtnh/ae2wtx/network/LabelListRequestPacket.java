@@ -58,6 +58,7 @@ public class LabelListRequestPacket implements IMessage {
             int onlineCount = 0;
             int usedChannels = 0;
             int maxChannels = 0;
+            int networkChannels = 0;
 
             TileEntity te = world.getTileEntity(msg.x, msg.y, msg.z);
             if (te instanceof LabeledWirelessTransceiverBlockEntity) {
@@ -73,7 +74,8 @@ public class LabelListRequestPacket implements IMessage {
                     : reg.getNetwork(world, lte.getLabelForDisplay(), lte.getPlacerId());
                 if (net != null) {
                     onlineCount = net.endpointCount();
-                    maxChannels = 32;
+                    maxChannels = lte.getMaxChannelsForDisplay();
+                    networkChannels = net.totalUsedChannels();
                     if (lte.getGridNode() != null && lte.getGridNode().isActive()) {
                         for (appeng.api.networking.IGridConnection c : lte.getGridNode().getConnections()) {
                             usedChannels = Math.max(c.getUsedChannels(), usedChannels);
@@ -82,7 +84,8 @@ public class LabelListRequestPacket implements IMessage {
                 }
             }
 
-            NetworkHandler.CHANNEL.sendTo(new LabelListResponsePacket(list, currentLabel, ownerName, onlineCount, usedChannels, maxChannels), player);
+            NetworkHandler.CHANNEL.sendTo(new LabelListResponsePacket(list, currentLabel, ownerName, onlineCount,
+                usedChannels, maxChannels, networkChannels), player);
             return null;
         }
     }
