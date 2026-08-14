@@ -25,7 +25,10 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     public static final int GUI_ID = 1;
 
     @SideOnly(Side.CLIENT)
-    private IIcon icon;
+    private IIcon iconOff;
+
+    @SideOnly(Side.CLIENT)
+    private IIcon iconOn;
 
     public LabeledWirelessTransceiverBlock() {
         super(Material.iron);
@@ -90,12 +93,13 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        icon = reg.registerIcon("ae2wtx:labeled_wireless_transceiver");
+        iconOff = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_off");
+        iconOn = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_on");
     }
 
     @Override
     @SideOnly(Side.CLIENT)
     public IIcon getIcon(int side, int meta) {
-        return icon;
+        return meta == 1 ? iconOn : iconOff;
     }
 }

@@ -8,8 +8,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.IIcon;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.AE2Wtx;
@@ -87,7 +88,7 @@ public class ChannelCardItem extends Item {
             long next = player.isSneaking() ? Math.max(0L, ch - 1L) : ch + 1L;
             if (next != ch) {
                 setChannel(stack, next);
-                player.addChatMessage(new ChatComponentText("extendedae_plus.chat.channel_card.set " + next));
+                player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.set", next));
             }
         }
         return stack;
@@ -110,10 +111,10 @@ public class ChannelCardItem extends Item {
         UUID current = getOwnerUUID(stack);
         if (current != null) {
             clearOwner(stack);
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.channel_card.owner.cleared"));
+            player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.owner.cleared"));
         } else {
             setOwnerUUID(stack, player.getUniqueID());
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.channel_card.owner.bound " + player.getCommandSenderName()));
+            player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.owner.bound", player.getCommandSenderName()));
         }
         return true;
     }
@@ -122,15 +123,15 @@ public class ChannelCardItem extends Item {
     public void addInformation(ItemStack stack, EntityPlayer player, List list, boolean advanced) {
         long ch = getChannel(stack);
         if (ch == 0L) {
-            list.add("extendedae_plus.chat.channel_card.channel.unset");
+            list.add(StatCollector.translateToLocal("item.extendedae_plus.channel_card.channel.unset"));
         } else {
-            list.add("extendedae_plus.chat.channel_card.channel " + ch);
+            list.add(StatCollector.translateToLocalFormatted("item.extendedae_plus.channel_card.channel", ch));
         }
         UUID owner = getOwnerUUID(stack);
         if (owner != null) {
-            list.add("extendedae_plus.chat.channel_card.owner.player " + owner.toString().substring(0, 8));
+            list.add(StatCollector.translateToLocalFormatted("item.extendedae_plus.channel_card.owner.player", owner.toString().substring(0, 8)));
         } else {
-            list.add("extendedae_plus.chat.channel_card.owner.unset");
+            list.add(StatCollector.translateToLocal("item.extendedae_plus.channel_card.owner.unset"));
         }
     }
 

@@ -7,36 +7,47 @@ import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.World;
 import net.minecraftforge.oredict.OreDictionary;
 
 import cn.gtnh.ae2wtx.AE2Wtx;
 import cn.gtnh.ae2wtx.init.ModItems;
+import cn.gtnh.ae2wtx.item.ChannelCardItem;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
- * Wireless transceiver block. Interactions (1.7.10):
+ * Wireless transceiver block. Interactions match ExtendedAE_Plus:
  * <ul>
- * <li>right click: toggle master/slave mode</li>
+ * <li>right click (empty/other): toggle master/slave</li>
  * <li>shift+right click: frequency +1 (redstone torch/stick held: +10)</li>
  * <li>shift+left click: frequency -1 (redstone torch/stick held: -10)</li>
- * <li>GT wrench + shift+right: lock/unlock</li>
- * <li>channel card + shift+left: write card owner into the transceiver</li>
+ * <li>GT wrench right click (not sneaking): toggle lock</li>
+ * <li>GT wrench shift+right click: disassemble into inventory</li>
+ * <li>GT wrench shift+left click: open frequency input screen (client)</li>
+ * <li>channel card shift+left click: write card owner into the transceiver</li>
+ * <li>locked transceiver: 10% mining speed</li>
  * </ul>
- * Metadata 0-5 holds the channel-usage indicator state.
+ * Metadata 0-5 holds the channel-usage indicator state (texture per state).
  */
 public class WirelessTransceiverBlock extends Block implements ITileEntityProvider {
 
     @SideOnly(Side.CLIENT)
-    private IIcon icon;
+    private IIcon[] sideIcons;
+
+    @SideOnly(Side.CLIENT)
+    private IIcon[] topIcons;
+
+    @SideOnly(Side.CLIENT)
+    private IIcon itemIcon;
 
     public WirelessTransceiverBlock() {
         super(Material.iron);
@@ -60,6 +71,24 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         return false;
     }
 
+    public static boolean isQuartzKnife(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        Item knife = appeng.api.AEApi.instance().items().itemCertusQuartzKnife.item();
+        return knife != null && stack.getItem() == knife;
+    }
+
+    private static int getStep(ItemStack held) {
+        if (held != null && held.getItem() != null) {
+            Item heldItem = held.getItem();
+            if (heldItem == Item.getItemFromBlock(Blocks.redstone_torch) || heldItem == Item.getItemFromBlock(Blocks.torch)) {
+                return 10;
+            }
+        }
+        return 1;
+    }
+
     @Override
     public boolean hasTileEntity(int metadata) {
         return true;
@@ -69,6 +98,8 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
     public TileEntity createNewTileEntity(World world, int metadata) {
         return new WirelessTransceiverBlockEntity();
     }
+
+    /* ===================== interactions ===================== */
 
     @Override
     public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
@@ -85,46 +116,53 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         boolean sneaking = player.isSneaking();
         boolean wrench = isGTWrench(held);
 
+        // wrench + sneaking: disassemble into inventory (matches EAEP disassemble behavior)
         if (wrench && sneaking) {
-            wte.setLocked(!wte.isLocked());
-            player.addChatMessage(new ChatComponentText(
-                wte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked" : "extendedae_plus.chat.wireless_transceiver.unlocked"));
+            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
+            ItemStack drop = new ItemStack(this);
+            if (!player.inventory.addItemStackToInventory(drop)) {
+                EntityItem ei = new EntityItem(world, x + 0.5D, y + 0.5D, z + 0.5D, drop);
+                world.spawnEntityInWorld(ei);
+            }
+            world.setBlockToAir(x, y, z);
             return true;
         }
 
+        // wrench (not sneaking): toggle lock (matches EAEP rotate -> lock)
         if (wrench) {
-            // open the frequency input GUI
-            cpw.mods.fml.common.network.internal.FMLNetworkHandler
-                .openGui(player, cn.gtnh.ae2wtx.AE2Wtx.instance, cn.gtnh.ae2wtx.gui.ModGuiHandler.GUI_FREQUENCY, world, x, y, z);
+            boolean newLocked = !wte.isLocked();
+            wte.setLocked(newLocked);
+            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.lever", 0.5F, newLocked ? 0.6F : 0.9F);
+            player.addChatMessage(new ChatComponentTranslation(
+                newLocked ? "extendedae_plus.chat.wireless_transceiver.locked_status"
+                    : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
             return true;
         }
 
         if (wte.isLocked()) {
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.locked"));
+            player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.locked"));
             return true;
         }
 
         if (sneaking) {
-            // frequency +
             int step = getStep(held);
             long f = wte.getFrequency() + step;
             wte.setFrequency(f);
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.channel " + wte.getFrequency()));
+            player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.channel", wte.getFrequency()));
         } else {
             wte.setMasterMode(!wte.isMasterMode());
             String modeKey = wte.isMasterMode()
                 ? "extendedae_plus.chat.wireless_transceiver.mode_master"
                 : "extendedae_plus.chat.wireless_transceiver.mode_slave";
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.mode " + modeKey));
+            player.addChatMessage(new ChatComponentTranslation(
+                "extendedae_plus.chat.wireless_transceiver.mode",
+                new ChatComponentTranslation(modeKey)));
         }
         return true;
     }
 
     @Override
     public void onBlockClicked(World world, int x, int y, int z, EntityPlayer player) {
-        if (world.isRemote) {
-            return;
-        }
         TileEntity te = world.getTileEntity(x, y, z);
         if (!(te instanceof WirelessTransceiverBlockEntity)) {
             return;
@@ -132,6 +170,18 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         WirelessTransceiverBlockEntity wte = (WirelessTransceiverBlockEntity) te;
         ItemStack held = player.getHeldItem();
         boolean sneaking = player.isSneaking();
+
+        // wrench + sneaking: open frequency input screen (client side)
+        if (sneaking && isGTWrench(held)) {
+            if (world.isRemote) {
+                cn.gtnh.ae2wtx.AE2Wtx.proxy.openFrequencyScreen(x, y, z, wte.getFrequency());
+            }
+            return;
+        }
+
+        if (world.isRemote) {
+            return;
+        }
 
         // channel card shift+left: write owner info into the transceiver
         if (sneaking && held != null && held.getItem() == ModItems.itemChannelCard) {
@@ -141,7 +191,7 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
 
         if (sneaking) {
             if (wte.isLocked()) {
-                player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.locked"));
+                player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.locked"));
                 return;
             }
             int step = getStep(held);
@@ -150,28 +200,19 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
                 f = 0;
             }
             wte.setFrequency(f);
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.channel " + wte.getFrequency()));
+            player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.channel", wte.getFrequency()));
         }
-    }
-
-    private static int getStep(ItemStack held) {
-        if (held != null && held.getItem() != null) {
-            Item heldItem = held.getItem();
-            if (heldItem == Item.getItemFromBlock(Blocks.redstone_torch) || heldItem == Item.getItemFromBlock(Blocks.torch)) {
-                return 10;
-            }
-        }
-        return 1;
     }
 
     private void handleChannelCardBinding(WirelessTransceiverBlockEntity wte, ItemStack card, EntityPlayer player) {
-        UUID cardOwner = cn.gtnh.ae2wtx.item.ChannelCardItem.getOwnerUUID(card);
+        UUID cardOwner = ChannelCardItem.getOwnerUUID(card);
         if (cardOwner != null) {
             wte.setPlacerId(cardOwner, player.getCommandSenderName());
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.bound_to " + cardOwner.toString().substring(0, 8)));
+            player.addChatMessage(new ChatComponentTranslation(
+                "extendedae_plus.chat.wireless_transceiver.bound_to", cardOwner.toString().substring(0, 8)));
         } else {
             wte.setPlacerId(player.getUniqueID(), player.getCommandSenderName());
-            player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.card_unbound"));
+            player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.card_unbound"));
         }
     }
 
@@ -197,17 +238,39 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         super.breakBlock(world, x, y, z, block, meta);
     }
 
+    /* ===================== locked mining slowdown ===================== */
+
+    @Override
+    public float getBlockHardness(World world, int x, int y, int z) {
+        float base = blockHardness;
+        TileEntity te = world.getTileEntity(x, y, z);
+        if (te instanceof WirelessTransceiverBlockEntity && ((WirelessTransceiverBlockEntity) te).isLocked()) {
+            return base * 0.1F;
+        }
+        return base;
+    }
+
     /* ===================== rendering ===================== */
 
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        icon = reg.registerIcon("ae2wtx:wireless_transceiver");
+        itemIcon = reg.registerIcon("ae2wtx:wireless_transceiver");
+        sideIcons = new IIcon[6];
+        topIcons = new IIcon[6];
+        for (int i = 0; i < 6; i++) {
+            sideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i);
+            topIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i + "_top");
+        }
     }
 
     @Override
     @SideOnly(Side.CLIENT)
     public IIcon getIcon(int side, int meta) {
-        return icon;
+        int state = Math.max(0, Math.min(5, meta));
+        if (side == 0 || side == 1) {
+            return topIcons[state];
+        }
+        return sideIcons[state];
     }
 }

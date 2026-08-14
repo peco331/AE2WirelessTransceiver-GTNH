@@ -7,13 +7,11 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
 import cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity;
-import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
-import cn.gtnh.ae2wtx.wireless.WirelessMasterRegistry;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
 import mcp.mobius.waila.api.IWailaDataProvider;
@@ -43,26 +41,34 @@ public class WailaProvider implements IWailaDataProvider {
         TileEntity te = accessor.getTileEntity();
         if (te instanceof WirelessTransceiverBlockEntity) {
             WirelessTransceiverBlockEntity wte = (WirelessTransceiverBlockEntity) te;
-            currenttip.add((wte.isMasterMode() ? "Master" : "Slave") + "  Freq: " + wte.getFrequency());
-            currenttip.add(wte.isLocked() ? EnumChatFormatting.YELLOW + "Locked" : "Unlocked");
-            UUID owner = wte.getPlacerId();
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.chat.wireless_transceiver.mode",
+                StatCollector.translateToLocal(wte.isMasterMode() ? "extendedae_plus.chat.wireless_transceiver.mode_master"
+                    : "extendedae_plus.chat.wireless_transceiver.mode_slave")));
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.frequency", wte.getFrequency()));
+            currenttip.add(StatCollector.translateToLocal(
+                wte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
+                    : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
+            java.util.UUID owner = wte.getPlacerId();
             if (owner == null) {
-                currenttip.add("Public");
+                currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.owner.public"));
             } else {
                 String name = wte.getPlacerName();
-                currenttip.add("Owner: " + (name != null ? name : owner.toString().substring(0, 8)));
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
+                    name != null ? name : owner.toString().substring(0, 8)));
             }
         } else if (te instanceof LabeledWirelessTransceiverBlockEntity) {
             LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
             String label = lte.getLabelForDisplay();
-            currenttip.add(label == null ? EnumChatFormatting.GRAY + "No label" : "Label: " + label);
-            currenttip.add("Channel: " + lte.getFrequency());
-            UUID owner = lte.getPlacerId();
+            currenttip.add(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.current_label") + ": "
+                + (label == null ? "-" : label));
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", lte.getFrequency()));
+            java.util.UUID owner = lte.getPlacerId();
             if (owner == null) {
-                currenttip.add("Public");
+                currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.owner.public"));
             } else {
                 String name = lte.getPlacerName();
-                currenttip.add("Owner: " + (name != null ? name : owner.toString().substring(0, 8)));
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
+                    name != null ? name : owner.toString().substring(0, 8)));
             }
         }
         return currenttip;

@@ -34,6 +34,9 @@ public class CommonProxy {
         registerRecipes();
     }
 
+    /** Client-only hook for the frequency input screen (overridden in ClientProxy). */
+    public void openFrequencyScreen(int x, int y, int z, long currentFrequency) {}
+
     private void registerRecipes() {
         ItemStack ring = appeng.api.AEApi.instance().blocks().blockQuantumRing.stack(1);
         ItemStack link = appeng.api.AEApi.instance().blocks().blockQuantumLink.stack(1);

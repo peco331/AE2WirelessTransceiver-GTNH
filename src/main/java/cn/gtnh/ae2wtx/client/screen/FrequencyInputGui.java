@@ -1,48 +1,50 @@
 package cn.gtnh.ae2wtx.client.screen;
 
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.client.gui.inventory.GuiContainer;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.StatCollector;
 
 import org.lwjgl.input.Keyboard;
 
-import cn.gtnh.ae2wtx.gui.FrequencyContainer;
 import cn.gtnh.ae2wtx.network.NetworkHandler;
 import cn.gtnh.ae2wtx.network.SetWirelessFrequencyPacket;
 
-/** Frequency input GUI for the plain wireless transceiver. */
-public class FrequencyInputGui extends GuiContainer {
+/**
+ * Frequency input screen, matching ExtendedAE_Plus' FrequencyInputScreen:
+ * centered layout, title, numeric-only input field, confirm/cancel, enter/esc.
+ */
+public class FrequencyInputGui extends GuiScreen {
 
-    private static final ResourceLocation BG = new ResourceLocation("ae2wtx", "textures/gui/freq_gui.png");
-
-    private final EntityPlayer player;
     private final int x;
     private final int y;
     private final int z;
+    private final long currentFrequency;
 
-    private GuiTextField freqField;
+    private GuiTextField frequencyInput;
 
-    public FrequencyInputGui(FrequencyContainer container, EntityPlayer player, int x, int y, int z) {
-        super(container);
-        this.player = player;
+    public FrequencyInputGui(int x, int y, int z, long currentFrequency) {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.xSize = 176;
-        this.ySize = 64;
+        this.currentFrequency = currentFrequency;
     }
 
     @Override
     public void initGui() {
-        super.initGui();
         Keyboard.enableRepeatEvents(true);
-        freqField = new GuiTextField(fontRendererObj, guiLeft + 30, guiTop + 20, 100, 16);
-        freqField.setMaxStringLength(19);
-        freqField.setText("1");
-        freqField.setFocused(true);
-        buttonList.add(new GuiButton(0, guiLeft + 134, guiTop + 18, 40, 20, "OK"));
+        int centerX = this.width / 2;
+        int centerY = this.height / 2;
+
+        frequencyInput = new GuiTextField(fontRendererObj, centerX - 100, centerY - 10, 200, 20);
+        frequencyInput.setMaxStringLength(19); // long max is 19 digits
+        frequencyInput.setText(String.valueOf(currentFrequency));
+        frequencyInput.setFocused(true);
+
+        buttonList.add(new GuiButton(0, centerX - 105, centerY + 20, 100, 20,
+            StatCollector.translateToLocal("extendedae_plus.screen.frequency_input.confirm")));
+        buttonList.add(new GuiButton(1, centerX + 5, centerY + 20, 100, 20,
+            StatCollector.translateToLocal("gui.cancel")));
     }
 
     @Override
@@ -54,23 +56,41 @@ public class FrequencyInputGui extends GuiContainer {
     @Override
     protected void actionPerformed(GuiButton button) {
         if (button.id == 0) {
-            long freq;
-            try {
-                freq = Long.parseLong(freqField.getText().trim());
-            } catch (NumberFormatException ignored) {
-                freq = 0L;
+            onConfirm();
+        } else if (button.id == 1) {
+            mc.displayGuiScreen(null);
+        }
+    }
+
+    private void onConfirm() {
+        try {
+            String text = frequencyInput.getText();
+            if (text == null || text.isEmpty()) {
+                text = "0";
             }
-            if (freq < 0) {
-                freq = 0;
+            long frequency = Long.parseLong(text);
+            if (frequency < 0) {
+                frequency = 0;
             }
-            NetworkHandler.CHANNEL.sendToServer(new SetWirelessFrequencyPacket(x, y, z, freq));
-            mc.thePlayer.closeScreen();
+            NetworkHandler.CHANNEL.sendToServer(new SetWirelessFrequencyPacket(x, y, z, frequency));
+            mc.displayGuiScreen(null);
+        } catch (NumberFormatException ignored) {
+            // invalid input, do nothing
         }
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (freqField.textboxKeyTyped(typedChar, keyCode)) {
+        // only digits allowed (matching EAEP's numeric filter)
+        if (Character.isDigit(typedChar) || keyCode == Keyboard.KEY_BACK || keyCode == Keyboard.KEY_DELETE
+            || keyCode == Keyboard.KEY_LEFT || keyCode == Keyboard.KEY_RIGHT || keyCode == Keyboard.KEY_HOME
+            || keyCode == Keyboard.KEY_END) {
+            if (frequencyInput.textboxKeyTyped(typedChar, keyCode)) {
+                return;
+            }
+        }
+        if (keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_NUMPADENTER) {
+            onConfirm();
             return;
         }
         super.keyTyped(typedChar, keyCode);
@@ -79,18 +99,21 @@ public class FrequencyInputGui extends GuiContainer {
     @Override
     public void mouseClicked(int mouseX, int mouseY, int mouseButton) {
         super.mouseClicked(mouseX, mouseY, mouseButton);
-        freqField.mouseClicked(mouseX, mouseY, mouseButton);
+        frequencyInput.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        mc.getTextureManager().bindTexture(BG);
-        drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize);
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        drawDefaultBackground();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        drawCenteredString(fontRendererObj,
+            StatCollector.translateToLocal("extendedae_plus.screen.frequency_input.title"), this.width / 2,
+            this.height / 2 - 40, 0xFFFFFF);
+        frequencyInput.drawTextBox();
     }
 
     @Override
-    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        fontRendererObj.drawString("Frequency", 8, 6, 0x404040);
-        freqField.drawTextBox();
+    public boolean doesGuiPauseGame() {
+        return false;
     }
 }
