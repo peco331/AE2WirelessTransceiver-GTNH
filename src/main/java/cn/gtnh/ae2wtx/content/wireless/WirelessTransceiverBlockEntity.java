@@ -56,11 +56,11 @@ public class WirelessTransceiverBlockEntity extends TileEntity
 
     private boolean firstTickDone = false;
 
-    // TEMP DEBUG: grid diagnostics synced to client for Waila
+    // diagnostics synced to client for Waila (mode/label handled via NBT)
     private boolean debugNodeActive = false;
     private boolean debugNodeHasGrid = false;
     private int debugNodeConns = 0;
-    private boolean debugNodeActivePrev = false;
+    private int debugNodeChannels = 0;
 
     public boolean isDebugNodeActive() {
         return debugNodeActive;
@@ -443,50 +443,69 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         syncToClients();
     }
 
-    /* ===================== visual state (metadata 0-5) ===================== */
+    /* ===================== visual state (metadata 0-5 slave / 6-11 master) ===================== */
 
     private void updateVisualState() {
         if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
             return;
         }
         IGridNode n = node;
-        // TEMP DEBUG: refresh diagnostics
+        // diagnostics synced for Waila (channel usage etc.)
         boolean dbgGrid = n != null && n.getGrid() != null;
         boolean dbgActive = n != null && n.isActive();
         int dbgConns = n == null ? 0 : n.getConnections().size();
-        if (dbgGrid != debugNodeHasGrid || dbgActive != debugNodeActive || dbgConns != debugNodeConns) {
+        int dbgChannels = 0;
+        if (n != null) {
+            for (IGridConnection c : n.getConnections()) {
+                dbgChannels = Math.max(c.getUsedChannels(), dbgChannels);
+            }
+        }
+        if (dbgGrid != debugNodeHasGrid || dbgActive != debugNodeActive || dbgConns != debugNodeConns
+            || dbgChannels != debugNodeChannels) {
             debugNodeHasGrid = dbgGrid;
             debugNodeActive = dbgActive;
             debugNodeConns = dbgConns;
+            debugNodeChannels = dbgChannels;
             syncToClients();
         }
         int newState = 5; // default: no connection
         if (n != null && n.isActive()) {
-            int usedChannels = 0;
-            for (IGridConnection c : n.getConnections()) {
-                usedChannels = Math.max(c.getUsedChannels(), usedChannels);
-            }
-            if (usedChannels >= 32) {
+            if (dbgChannels >= 32) {
                 newState = 4;
-            } else if (usedChannels >= 24) {
+            } else if (dbgChannels >= 24) {
                 newState = 3;
-            } else if (usedChannels >= 16) {
+            } else if (dbgChannels >= 16) {
                 newState = 2;
-            } else if (usedChannels >= 8) {
+            } else if (dbgChannels >= 8) {
                 newState = 1;
-            } else if (usedChannels > 0) {
+            } else if (dbgChannels > 0) {
                 newState = 0;
             }
         }
-        // TEMP DEBUG: log first connection state change
-        if (n != null && debugNodeActive != debugNodeActivePrev) {
-            debugNodeActivePrev = debugNodeActive;
-            cn.gtnh.ae2wtx.AE2Wtx.LOG.info("WTX state: active=" + debugNodeActive + " grid=" + debugNodeHasGrid
-                + " conns=" + debugNodeConns + " at " + xCoord + "," + yCoord + "," + zCoord);
+        // master mode uses metadata 6-11 (yellow textures), slave 0-5 (blue)
+        int meta = masterMode ? 6 + newState : newState;
+        if (worldObj.getBlockMetadata(xCoord, yCoord, zCoord) != meta) {
+            worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 3);
         }
-        if (worldObj.getBlockMetadata(xCoord, yCoord, zCoord) != newState) {
-            worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, newState, 3);
+    }
+
+    /** Channel usage for Waila/GUI display (server: live, client: last synced). */
+    public int getUsedChannelsForDisplay() {
+        if (worldObj != null && worldObj.isRemote) {
+            return debugNodeChannels;
         }
+        if (node == null) {
+            return 0;
+        }
+        int used = 0;
+        for (IGridConnection c : node.getConnections()) {
+            used = Math.max(c.getUsedChannels(), used);
+        }
+        return used;
+    }
+
+    public int getMaxChannelsForDisplay() {
+        return 32; // DENSE_CAPACITY node
     }
 
     /* ===================== NBT ===================== */
@@ -507,6 +526,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         tag.setBoolean("dbgGrid", debugNodeHasGrid);
         tag.setBoolean("dbgActive", debugNodeActive);
         tag.setInteger("dbgConns", debugNodeConns);
+        tag.setInteger("dbgCh", debugNodeChannels);
     }
 
     @Override
@@ -554,6 +574,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         this.debugNodeHasGrid = tag.getBoolean("dbgGrid");
         this.debugNodeActive = tag.getBoolean("dbgActive");
         this.debugNodeConns = tag.getInteger("dbgConns");
+        this.debugNodeChannels = tag.getInteger("dbgCh");
         if (worldObj != null) {
             worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
         }

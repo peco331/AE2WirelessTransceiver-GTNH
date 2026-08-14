@@ -46,6 +46,12 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
     private IIcon[] topIcons;
 
     @SideOnly(Side.CLIENT)
+    private IIcon[] masterSideIcons;
+
+    @SideOnly(Side.CLIENT)
+    private IIcon[] masterTopIcons;
+
+    @SideOnly(Side.CLIENT)
     private IIcon itemIcon;
 
     public WirelessTransceiverBlock() {
@@ -256,16 +262,30 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         itemIcon = reg.registerIcon("ae2wtx:wireless_transceiver");
         sideIcons = new IIcon[6];
         topIcons = new IIcon[6];
+        masterSideIcons = new IIcon[6];
+        masterTopIcons = new IIcon[6];
         for (int i = 0; i < 6; i++) {
             sideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i);
             topIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i + "_top");
+            // master (yellow) variant: metadata 6-11
+            masterSideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_master_" + i);
+            masterTopIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_master_" + i + "_top");
         }
     }
 
     @Override
     @SideOnly(Side.CLIENT)
     public IIcon getIcon(int side, int meta) {
-        int state = Math.max(0, Math.min(5, meta));
+        // meta 0-5: slave (blue), meta 6-11: master (yellow) - EAEP state texture
+        boolean master = meta >= 6;
+        int state = master ? meta - 6 : meta;
+        state = Math.max(0, Math.min(5, state));
+        if (master) {
+            if (side == 0 || side == 1) {
+                return masterTopIcons[state];
+            }
+            return masterSideIcons[state];
+        }
         if (side == 0 || side == 1) {
             return topIcons[state];
         }
