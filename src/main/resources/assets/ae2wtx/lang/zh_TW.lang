@@ -10,7 +10,6 @@ gui.extendedae_plus.labeled_wireless.info=收發器資訊
 gui.extendedae_plus.labeled_wireless.current_label=目前頻段
 gui.extendedae_plus.labeled_wireless.current_owner=所有者
 gui.extendedae_plus.labeled_wireless.online_count=線上數
-gui.extendedae_plus.labeled_wireless.search=搜尋
 gui.extendedae_plus.labeled_wireless.button.new=新建
 gui.extendedae_plus.labeled_wireless.button.delete=刪除
 gui.extendedae_plus.labeled_wireless.button.set=設定

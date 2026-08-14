@@ -76,11 +76,7 @@ public class LabelListRequestPacket implements IMessage {
                     onlineCount = net.endpointCount();
                     maxChannels = lte.getMaxChannelsForDisplay();
                     networkChannels = net.totalUsedChannels();
-                    if (lte.getGridNode() != null && lte.getGridNode().isActive()) {
-                        for (appeng.api.networking.IGridConnection c : lte.getGridNode().getConnections()) {
-                            usedChannels = Math.max(c.getUsedChannels(), usedChannels);
-                        }
-                    }
+                    usedChannels = lte.getUsedChannelsForDisplay();
                 }
             }
 

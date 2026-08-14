@@ -10,7 +10,6 @@ gui.extendedae_plus.labeled_wireless.info=Transceiver Info
 gui.extendedae_plus.labeled_wireless.current_label=Current Band
 gui.extendedae_plus.labeled_wireless.current_owner=Owner
 gui.extendedae_plus.labeled_wireless.online_count=Online
-gui.extendedae_plus.labeled_wireless.search=Search
 gui.extendedae_plus.labeled_wireless.button.new=New
 gui.extendedae_plus.labeled_wireless.button.delete=Del
 gui.extendedae_plus.labeled_wireless.button.set=Set

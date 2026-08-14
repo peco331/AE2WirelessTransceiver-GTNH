@@ -58,6 +58,13 @@ public class LabelNetworkRegistry extends WorldSavedData {
 
     /* ===================== access ===================== */
 
+    /**
+     * Cached per-overworld instances: loadData() re-reads and re-parses NBT
+     * from disk on every call, and band stats query this every 20 ticks per
+     * transceiver. Weak keys let the cache drop with the world.
+     */
+    private static final java.util.Map<World, LabelNetworkRegistry> INSTANCE_CACHE = new java.util.WeakHashMap<>();
+
     public static LabelNetworkRegistry get(World world) {
         if (world == null || world.isRemote) {
             return null;
@@ -70,10 +77,14 @@ public class LabelNetworkRegistry extends WorldSavedData {
             }
             overworld = server.worldServers[0];
         }
-        LabelNetworkRegistry reg = (LabelNetworkRegistry) overworld.mapStorage.loadData(LabelNetworkRegistry.class, SAVE_ID);
+        LabelNetworkRegistry reg = INSTANCE_CACHE.get(overworld);
         if (reg == null) {
-            reg = new LabelNetworkRegistry();
-            overworld.mapStorage.setData(SAVE_ID, reg);
+            reg = (LabelNetworkRegistry) overworld.mapStorage.loadData(LabelNetworkRegistry.class, SAVE_ID);
+            if (reg == null) {
+                reg = new LabelNetworkRegistry();
+                overworld.mapStorage.setData(SAVE_ID, reg);
+            }
+            INSTANCE_CACHE.put(overworld, reg);
         }
         return reg;
     }
@@ -430,7 +441,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
      * Virtual host for the label network's grid node. Not a world tile entity;
      * anchored at the overworld spawn point so the rv3 WorldGrid can place it.
      */
-    static class VirtualLabelNodeHost implements IGridHost, IGridBlock {
+    public static class VirtualLabelNodeHost implements IGridHost, IGridBlock {
 
         private final World anchorWorld;
         private final DimensionalCoord location;

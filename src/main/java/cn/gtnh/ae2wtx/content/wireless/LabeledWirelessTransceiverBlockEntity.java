@@ -80,12 +80,18 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     private long lastSecurityKey = Long.MIN_VALUE;
+    private int secKeyTick = 0;
 
     /** Join the grid's security realm so GridConnection's securityCheck passes. */
     private void syncSecurityKey() {
         if (node == null) {
             return;
         }
+        // grid security keys change rarely - re-check every 10 ticks
+        if (++secKeyTick < 10) {
+            return;
+        }
+        secKeyTick = 0;
         IGrid grid = node.getGrid();
         if (grid == null) {
             return;
@@ -101,7 +107,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 lastSecurityKey = key;
                 if (node instanceof appeng.me.GridNode) {
                     ((appeng.me.GridNode) node).setLastSecurityKey(key);
-                    AE2Wtx.LOG.info("LWTX security key synced: " + key + " at " + xCoord + "," + yCoord + "," + zCoord);
+                    AE2Wtx.LOG.debug("LWTX security key synced: " + key + " at " + xCoord + "," + yCoord + "," + zCoord);
                 }
             }
         } catch (Throwable t) {
@@ -109,17 +115,24 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
     }
 
+    private int cachedPlayerId = -1;
+    private UUID cachedPlayerIdOwner = null;
+
     /** Give the node the placer's AE2 player id (needed for Security Station grids). */
     private void applyNodeIdentity() {
         if (node == null || placerId == null) {
             return;
         }
         try {
-            com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(placerId,
-                placerName == null ? "" : placerName);
-            int pid = appeng.api.AEApi.instance().registries().players().getID(profile);
-            if (pid >= 0 && node.getPlayerID() != pid) {
-                node.setPlayerID(pid);
+            // players().getID() walks a registry every call - cache per owner
+            if (cachedPlayerIdOwner == null || !cachedPlayerIdOwner.equals(placerId) || cachedPlayerId < 0) {
+                com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(placerId,
+                    placerName == null ? "" : placerName);
+                cachedPlayerId = appeng.api.AEApi.instance().registries().players().getID(profile);
+                cachedPlayerIdOwner = placerId;
+            }
+            if (cachedPlayerId >= 0 && node.getPlayerID() != cachedPlayerId) {
+                node.setPlayerID(cachedPlayerId);
             }
         } catch (Throwable t) {
             // registry hiccup - retry next tick
@@ -311,6 +324,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     public void setPlacerId(UUID placerId, String placerName) {
         this.placerId = placerId;
         this.placerName = placerName;
+        this.cachedPlayerIdOwner = null; // invalidate player-id cache
         markDirty();
         syncToClients();
     }
@@ -342,19 +356,64 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return frequency;
     }
 
-    /** Channel usage for Waila/GUI display. */
+    /**
+     * Channel usage for Waila/GUI display. rv3 SATURATES its channel counters
+     * at the node capacity (PathingCalculation.tryUseChannel stops granting
+     * channels past maxChannels), so AE's own values can never show "32+x".
+     * Instead we count the real device demand: BFS over the local grid from
+     * this node, counting leaf devices (nodes with a single connection), while
+     * skipping the wireless label-link connection and ME controllers.
+     * Server-side reads the throttled cache (serverUsedCache) so repeated
+     * callers (Waila requests, whole-band stats) never trigger the BFS.
+     */
     public int getUsedChannelsForDisplay() {
         if (worldObj != null && worldObj.isRemote) {
             return channelsSync;
         }
-        if (node == null) {
-            return 0;
+        return serverUsedCache;
+    }
+
+    private int countLocalDevicePaths() {
+        java.util.Set<IGridNode> visited = new java.util.HashSet<>();
+        java.util.ArrayDeque<IGridNode> stack = new java.util.ArrayDeque<>();
+        visited.add(node);
+        stack.push(node);
+        int devices = 0;
+        while (!stack.isEmpty()) {
+            IGridNode n = stack.pop();
+            for (IGridConnection c : n.getConnections()) {
+                IGridNode other = c.a() == n ? c.b() : c.a();
+                if (other == null || visited.contains(other)) {
+                    continue;
+                }
+                if (isSkippedNeighbor(other)) {
+                    continue;
+                }
+                visited.add(other);
+                if (other.getConnections().size() <= 1) {
+                    devices++; // leaf device (machine / bus / interface)
+                } else {
+                    stack.push(other); // cable junction - keep walking
+                }
+            }
         }
-        int used = 0;
-        for (appeng.api.networking.IGridConnection c : node.getConnections()) {
-            used = Math.max(c.getUsedChannels(), used);
+        return devices;
+    }
+
+    /** Wireless link to the label virtual node, or an ME controller anchor. */
+    private boolean isSkippedNeighbor(IGridNode other) {
+        try {
+            Object machine = other.getGridBlock() == null ? null : other.getGridBlock().getMachine();
+            if (machine instanceof cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry.VirtualLabelNodeHost) {
+                return true;
+            }
+            if (machine instanceof appeng.tile.networking.TileController) {
+                return true;
+            }
+        } catch (Throwable t) {
+            // defensive: never break the display path
         }
-        return used;
+        return false;
     }
 
     public int getMaxChannelsForDisplay() {
@@ -479,25 +538,29 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     private boolean onlineSync = false;
     private int channelsSync = 0;
     private int maxChannelsSync = 32;
+    private int usedCalcTick = 0;
+    /** Server-side BFS result, refreshed every 10 ticks; read by Waila/GUI/band stats. */
+    private int serverUsedCache = 0;
 
     private void updateVisualState() {
         if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
             return;
         }
         boolean linkUp = labelLink != null && labelLink.isConnected();
-        int used = 0;
-        if (node != null) {
-            for (appeng.api.networking.IGridConnection c : node.getConnections()) {
-                used = Math.max(c.getUsedChannels(), used);
-            }
+        // heavy work (BFS demand count + grid cache lookups) runs every 10 ticks;
+        // linkUp check is a few field reads, safe every tick
+        if (++usedCalcTick < 10) {
+            return;
         }
+        usedCalcTick = 0;
+        serverUsedCache = node == null ? 0 : countLocalDevicePaths();
         int max = 32;
         if (node instanceof appeng.me.GridNode) {
             max = ((appeng.me.GridNode) node).getMaxChannels();
         }
-        if (linkUp != onlineSync || used != channelsSync || max != maxChannelsSync) {
+        if (linkUp != onlineSync || serverUsedCache != channelsSync || max != maxChannelsSync) {
             onlineSync = linkUp;
-            channelsSync = used;
+            channelsSync = serverUsedCache;
             maxChannelsSync = max;
             syncToClients();
         }

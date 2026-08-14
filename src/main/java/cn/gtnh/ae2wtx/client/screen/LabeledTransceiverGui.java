@@ -79,12 +79,12 @@ public class LabeledTransceiverGui extends GuiContainer {
     public void initGui() {
         super.initGui();
         Keyboard.enableRepeatEvents(true);
-        // search box above the frequency list column (visible bordered box)
-        int sx = guiLeft + 9;
-        int sy = guiTop + 15;
-        searchBox = new GuiTextField(fontRendererObj, sx, sy, 110, 9);
+        // search box at the EAEP original position (top right, borderless)
+        int sx = guiLeft + 134;
+        int sy = guiTop + 23;
+        searchBox = new GuiTextField(fontRendererObj, sx, sy, 116, 9);
         searchBox.setMaxStringLength(64);
-        searchBox.setEnableBackgroundDrawing(true);
+        searchBox.setEnableBackgroundDrawing(false);
         searchBox.setVisible(true);
         searchBox.setFocused(false);
         searchBox.setCanLoseFocus(true);
@@ -253,11 +253,6 @@ public class LabeledTransceiverGui extends GuiContainer {
         drawRect(guiLeft + 134, guiTop + 41, guiLeft + 250, guiTop + 93, 0x10FFFFFF);
 
         searchBox.drawTextBox();
-        if (searchBox.getText().isEmpty() && !searchBox.isFocused()) {
-            fontRendererObj.drawString(
-                StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.search"),
-                guiLeft + 11, guiTop + 17, 0x808080);
-        }
         renderList();
         renderScrollBar();
     }
@@ -338,13 +333,15 @@ public class LabeledTransceiverGui extends GuiContainer {
                 networkColor = 0xE0E055;
             }
         }
+        // 5 rows at 10px pitch so the last row stays inside the EAEP info panel
+        // (panel spans y=41..92; 41+4*10+10=91 < 92)
         drawScaledText(trim(labelLine), infoX, infoY, infoScale, 0x404040);
-        drawScaledText(trim(ownerLine), infoX, infoY + 12, infoScale, 0x404040);
-        drawScaledText(trim(onlineLine), infoX, infoY + 24, infoScale, 0x404040);
-        drawScaledText(trim(channelLine), infoX, infoY + 36, infoScale, 0x404040);
-        drawScaledText(trim(networkPrefix), infoX, infoY + 48, infoScale, 0x404040);
+        drawScaledText(trim(ownerLine), infoX, infoY + 10, infoScale, 0x404040);
+        drawScaledText(trim(onlineLine), infoX, infoY + 20, infoScale, 0x404040);
+        drawScaledText(trim(channelLine), infoX, infoY + 30, infoScale, 0x404040);
+        drawScaledText(trim(networkPrefix), infoX, infoY + 40, infoScale, 0x404040);
         drawScaledText(trim(networkValue), infoX + (int) (fontRendererObj.getStringWidth(networkPrefix) * infoScale),
-            infoY + 48, infoScale, networkColor);
+            infoY + 40, infoScale, networkColor);
     }
 
     private String trim(String text) {
