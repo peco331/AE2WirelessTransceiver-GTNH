@@ -1,7 +1,6 @@
 itemGroup.ae2wtx=AE2 Wireless Transceiver
 tile.ae2wtx.wireless_transceiver.name=Wireless Transceiver
 tile.ae2wtx.labeled_wireless_transceiver.name=Labeled Wireless Transceiver
-item.ae2wtx.channel_card.name=Channel Card
 
 # ---- ExtendedAE_Plus key parity (en_us) ----
 block.extendedae_plus.labeled_wireless_transceiver=Labeled Wireless Transceiver
@@ -13,17 +12,6 @@ extendedae_plus.chat.wireless_transceiver.channel_set=Channel set to: %s
 extendedae_plus.chat.wireless_transceiver.mode=Mode: %s
 extendedae_plus.chat.wireless_transceiver.mode_master=Master
 extendedae_plus.chat.wireless_transceiver.mode_slave=Slave
-extendedae_plus.chat.wireless_transceiver.bound_to=Transceiver bound to: %s
-extendedae_plus.chat.wireless_transceiver.card_unbound=Channel card unbound, using current player
-item.extendedae_plus.channel_card=Channel Card
-item.extendedae_plus.channel_card.channel=Frequency: %s
-item.extendedae_plus.channel_card.channel.unset=Frequency: Unset
-item.extendedae_plus.channel_card.set=Frequency set to: %s
-item.extendedae_plus.channel_card.owner.unset=Owner: Unbound
-item.extendedae_plus.channel_card.owner.team=Owner: %s
-item.extendedae_plus.channel_card.owner.player=Owner: Player %s
-item.extendedae_plus.channel_card.owner.bound=Bound to: %s
-item.extendedae_plus.channel_card.owner.cleared=Owner binding cleared
 extendedae_plus.screen.frequency_input.title=Set Frequency
 extendedae_plus.screen.frequency_input.current=Current Frequency: %s
 extendedae_plus.screen.frequency_input.field=Frequency
@@ -44,4 +32,3 @@ extendedae_plus.jade.owner.public=Public
 extendedae_plus.jade.label=Label: %s
 extendedae_plus.jade.online=Device Online
 extendedae_plus.jade.offline=Device Offline
-item.extendedae_plus.channel_card.compatible=Fits in: ME Interface, Dual Interface, Import/Export Bus, Storage Bus

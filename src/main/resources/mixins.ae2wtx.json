@@ -5,12 +5,7 @@
   "refmap": "mixins.ae2wtx.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",
-  "mixins": [
-    "DualityInterfaceChannelCardMixin",
-    "DualityFluidInterfaceChannelCardMixin",
-    "SharedItemBusChannelCardMixin",
-    "StorageBusChannelCardMixin"
-  ],
+  "mixins": [],
   "client": [],
   "server": []
 }

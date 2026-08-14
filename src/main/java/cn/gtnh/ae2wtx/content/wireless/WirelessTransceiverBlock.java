@@ -1,7 +1,5 @@
 package cn.gtnh.ae2wtx.content.wireless;
 
-import java.util.UUID;
-
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
@@ -18,8 +16,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.oredict.OreDictionary;
 
 import cn.gtnh.ae2wtx.AE2Wtx;
-import cn.gtnh.ae2wtx.init.ModItems;
-import cn.gtnh.ae2wtx.item.ChannelCardItem;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -185,12 +181,6 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
             return;
         }
 
-        // channel card shift+left: write owner info into the transceiver
-        if (sneaking && held != null && held.getItem() == ModItems.itemChannelCard) {
-            handleChannelCardBinding(wte, held, player);
-            return;
-        }
-
         if (sneaking) {
             if (wte.isLocked()) {
                 player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.locked"));
@@ -203,18 +193,6 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
             }
             wte.setFrequency(f);
             player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.channel", wte.getFrequency()));
-        }
-    }
-
-    private void handleChannelCardBinding(WirelessTransceiverBlockEntity wte, ItemStack card, EntityPlayer player) {
-        UUID cardOwner = ChannelCardItem.getOwnerUUID(card);
-        if (cardOwner != null) {
-            wte.setPlacerId(cardOwner, player.getCommandSenderName());
-            player.addChatMessage(new ChatComponentTranslation(
-                "extendedae_plus.chat.wireless_transceiver.bound_to", cardOwner.toString().substring(0, 8)));
-        } else {
-            wte.setPlacerId(player.getUniqueID(), player.getCommandSenderName());
-            player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.card_unbound"));
         }
     }
 
