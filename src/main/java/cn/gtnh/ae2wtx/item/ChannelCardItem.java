@@ -213,6 +213,8 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
         } else {
             list.add(StatCollector.translateToLocal("item.extendedae_plus.channel_card.owner.unset"));
         }
+        // compatible devices (device reads the card and wirelessly joins the master)
+        list.add(StatCollector.translateToLocal("item.extendedae_plus.channel_card.compatible"));
     }
 
     @Override

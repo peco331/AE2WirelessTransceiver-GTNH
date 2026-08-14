@@ -44,3 +44,4 @@ extendedae_plus.jade.owner.public=公共
 extendedae_plus.jade.label=標籤: %s
 extendedae_plus.jade.online=設備在線
 extendedae_plus.jade.offline=設備離線
+item.extendedae_plus.channel_card.compatible=可放入：ME介面、二合一介面、輸入/輸出匯流排、儲存匯流排

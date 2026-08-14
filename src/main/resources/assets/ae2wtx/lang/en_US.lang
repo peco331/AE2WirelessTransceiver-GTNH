@@ -44,3 +44,4 @@ extendedae_plus.jade.owner.public=Public
 extendedae_plus.jade.label=Label: %s
 extendedae_plus.jade.online=Device Online
 extendedae_plus.jade.offline=Device Offline
+item.extendedae_plus.channel_card.compatible=Fits in: ME Interface, Dual Interface, Import/Export Bus, Storage Bus
