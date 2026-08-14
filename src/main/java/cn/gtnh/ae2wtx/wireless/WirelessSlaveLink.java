@@ -51,6 +51,11 @@ public class WirelessSlaveLink {
         return !shutdown && connection != null;
     }
 
+    /** Whether the host endpoint is gone (device removed / unloaded). */
+    public boolean hostRemoved() {
+        return host.isEndpointRemoved();
+    }
+
     public double getDistance() {
         return distance;
     }
