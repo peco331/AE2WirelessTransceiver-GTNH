@@ -6,7 +6,6 @@ import net.minecraftforge.common.config.Configuration;
 
 public class ModConfig {
 
-    public static double wirelessMaxRange = 256.0;
     public static boolean wirelessCrossDimEnable = true;
     public static double wirelessTransceiverIdlePower = 10.0;
 
@@ -14,9 +13,6 @@ public class ModConfig {
         Configuration cfg = new Configuration(file);
         try {
             cfg.load();
-            wirelessMaxRange = cfg
-                .get("wireless", "wirelessMaxRange", 256.0, "Maximum distance (blocks) for same-dimension wireless links when cross-dimension is disabled.")
-                .getDouble(256.0);
             wirelessCrossDimEnable = cfg
                 .get("wireless", "wirelessCrossDimEnable", true, "Allow wireless transceivers to bridge channels across dimensions.")
                 .getBoolean(true);

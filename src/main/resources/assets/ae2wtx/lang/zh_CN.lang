@@ -1,23 +1,13 @@
 itemGroup.ae2wtx=AE2 无线收发器
-tile.ae2wtx.wireless_transceiver.name=无线收发器
-tile.ae2wtx.labeled_wireless_transceiver.name=标签无线收发器
+tile.ae2wtx.labeled_wireless_transceiver.name=无线收发器
 
 # ---- ExtendedAE_Plus key parity (zh_cn) ----
-block.extendedae_plus.labeled_wireless_transceiver=标签无线收发器
+block.extendedae_plus.labeled_wireless_transceiver=无线收发器
 extendedae_plus.chat.wireless_transceiver.locked=收发器已锁定，无法修改
 extendedae_plus.chat.wireless_transceiver.locked_status=已锁定收发器
 extendedae_plus.chat.wireless_transceiver.unlocked_status=已解锁收发器
-extendedae_plus.chat.wireless_transceiver.channel=频道：%s
-extendedae_plus.chat.wireless_transceiver.channel_set=频道已设置为：%s
-extendedae_plus.chat.wireless_transceiver.mode=模式：%s
-extendedae_plus.chat.wireless_transceiver.mode_master=主端
-extendedae_plus.chat.wireless_transceiver.mode_slave=从端
-extendedae_plus.screen.frequency_input.title=设置频率
-extendedae_plus.screen.frequency_input.current=当前频率：%s
-extendedae_plus.screen.frequency_input.field=频率
-extendedae_plus.screen.frequency_input.confirm=确认
 gui.extendedae_plus.labeled_wireless.info=收发器信息
-gui.extendedae_plus.labeled_wireless.current_label=当前标签
+gui.extendedae_plus.labeled_wireless.current_label=当前频率
 gui.extendedae_plus.labeled_wireless.current_owner=所有者
 gui.extendedae_plus.labeled_wireless.online_count=在线数
 gui.extendedae_plus.labeled_wireless.button.new=新建
@@ -27,8 +17,8 @@ gui.extendedae_plus.labeled_wireless.button.refresh=断开
 extendedae_plus.jade.frequency=频率: %s
 extendedae_plus.jade.channels=频道: %s
 extendedae_plus.jade.channels_of=频道: %s/%s
+extendedae_plus.jade.channels_network=全网频道: %s/%s
 extendedae_plus.jade.owner=所有者: %s
 extendedae_plus.jade.owner.public=公共
-extendedae_plus.jade.label=标签: %s
 extendedae_plus.jade.online=设备在线
 extendedae_plus.jade.offline=设备离线

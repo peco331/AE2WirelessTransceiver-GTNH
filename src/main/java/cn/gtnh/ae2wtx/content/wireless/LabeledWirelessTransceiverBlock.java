@@ -18,7 +18,9 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
- * Labeled wireless transceiver block: right-click opens the label management GUI.
+ * Wireless transceiver (the only transceiver block; legacy registry name
+ * "labeled_wireless_transceiver" kept for world compatibility):
+ * right-click opens the frequency (label) management GUI.
  * Metadata 0/1 = offline/online indicator.
  */
 public class LabeledWirelessTransceiverBlock extends Block implements ITileEntityProvider {
@@ -89,6 +91,19 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
             ((LabeledWirelessTransceiverBlockEntity) te).cleanupForRemoval();
         }
         super.breakBlock(world, x, y, z, block, meta);
+    }
+
+    /* ===================== locked mining slowdown ===================== */
+
+    @Override
+    public float getBlockHardness(World world, int x, int y, int z) {
+        float base = blockHardness;
+        TileEntity te = world.getTileEntity(x, y, z);
+        if (te instanceof LabeledWirelessTransceiverBlockEntity
+            && ((LabeledWirelessTransceiverBlockEntity) te).isLocked()) {
+            return base * 0.1F;
+        }
+        return base;
     }
 
     /* ===================== rendering ===================== */

@@ -15,11 +15,6 @@ public final class NetworkHandler {
 
     public static void init() {
         CHANNEL.registerMessage(
-            SetWirelessFrequencyPacket.Handler.class,
-            SetWirelessFrequencyPacket.class,
-            nextId++,
-            Side.SERVER);
-        CHANNEL.registerMessage(
             LabelApplyPacket.Handler.class,
             LabelApplyPacket.class,
             nextId++,
@@ -37,11 +32,6 @@ public final class NetworkHandler {
         CHANNEL.registerMessage(
             LabelListResponsePacket.Handler.class,
             LabelListResponsePacket.class,
-            nextId++,
-            Side.CLIENT);
-        CHANNEL.registerMessage(
-            OpenFrequencyScreenPacket.Handler.class,
-            OpenFrequencyScreenPacket.class,
             nextId++,
             Side.CLIENT);
         AE2Wtx.LOG.info("ae2wtx network channel initialized");

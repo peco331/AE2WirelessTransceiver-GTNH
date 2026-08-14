@@ -1,7 +1,6 @@
 package cn.gtnh.ae2wtx.compat;
 
 import java.util.List;
-import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -11,16 +10,14 @@ import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
-import cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
 import mcp.mobius.waila.api.IWailaDataProvider;
 
-/** Waila provider showing mode/frequency/label/owner/channels for both transceivers. */
+/** Waila provider for the wireless transceiver: frequency/owner/channels/lock/online. */
 public class WailaProvider implements IWailaDataProvider {
 
     public static void callback(mcp.mobius.waila.api.IWailaRegistrar registrar) {
-        registrar.registerBodyProvider(new WailaProvider(), WirelessTransceiverBlockEntity.class);
         registrar.registerBodyProvider(new WailaProvider(), LabeledWirelessTransceiverBlockEntity.class);
     }
 
@@ -39,29 +36,10 @@ public class WailaProvider implements IWailaDataProvider {
     public List<String> getWailaBody(ItemStack itemStack, List<String> currenttip, IWailaDataAccessor accessor,
         IWailaConfigHandler config) {
         TileEntity te = accessor.getTileEntity();
-        if (te instanceof WirelessTransceiverBlockEntity) {
-            WirelessTransceiverBlockEntity wte = (WirelessTransceiverBlockEntity) te;
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.chat.wireless_transceiver.mode",
-                StatCollector.translateToLocal(wte.isMasterMode() ? "extendedae_plus.chat.wireless_transceiver.mode_master"
-                    : "extendedae_plus.chat.wireless_transceiver.mode_slave")));
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.frequency", wte.getFrequency()));
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
-                wte.getUsedChannelsForDisplay(), wte.getMaxChannelsForDisplay()));
-            currenttip.add(StatCollector.translateToLocal(
-                wte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
-                    : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
-            java.util.UUID owner = wte.getPlacerId();
-            if (owner == null) {
-                currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.owner.public"));
-            } else {
-                String name = wte.getPlacerName();
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
-                    name != null ? name : owner.toString().substring(0, 8)));
-            }
-        } else if (te instanceof LabeledWirelessTransceiverBlockEntity) {
+        if (te instanceof LabeledWirelessTransceiverBlockEntity) {
             LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
             String label = lte.getLabelForDisplay();
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.label",
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.frequency",
                 label == null || label.isEmpty() ? "-" : label));
             java.util.UUID owner = lte.getPlacerId();
             if (owner == null) {
@@ -71,8 +49,16 @@ public class WailaProvider implements IWailaDataProvider {
                 currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
                     name != null ? name : owner.toString().substring(0, 8)));
             }
+            // channels used by THIS transceiver
             currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
                 lte.getUsedChannelsForDisplay(), lte.getMaxChannelsForDisplay()));
+            // channels used by ALL endpoints of this frequency (label), so the
+            // player can see how many channels remain on the whole network
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_network",
+                lte.getNetworkChannelsForDisplay(), lte.getMaxChannelsForDisplay()));
+            currenttip.add(StatCollector.translateToLocal(
+                lte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
+                    : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
             currenttip.add(StatCollector.translateToLocal(
                 lte.isOnline() ? "extendedae_plus.jade.online" : "extendedae_plus.jade.offline"));
         }

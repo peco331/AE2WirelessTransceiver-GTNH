@@ -1,23 +1,13 @@
 itemGroup.ae2wtx=AE2 Wireless Transceiver
-tile.ae2wtx.wireless_transceiver.name=Wireless Transceiver
-tile.ae2wtx.labeled_wireless_transceiver.name=Labeled Wireless Transceiver
+tile.ae2wtx.labeled_wireless_transceiver.name=Wireless Transceiver
 
 # ---- ExtendedAE_Plus key parity (en_us) ----
-block.extendedae_plus.labeled_wireless_transceiver=Labeled Wireless Transceiver
+block.extendedae_plus.labeled_wireless_transceiver=Wireless Transceiver
 extendedae_plus.chat.wireless_transceiver.locked=Transceiver locked, cannot modify
 extendedae_plus.chat.wireless_transceiver.locked_status=Transceiver Locked
 extendedae_plus.chat.wireless_transceiver.unlocked_status=Transceiver Unlocked
-extendedae_plus.chat.wireless_transceiver.channel=Channel: %s
-extendedae_plus.chat.wireless_transceiver.channel_set=Channel set to: %s
-extendedae_plus.chat.wireless_transceiver.mode=Mode: %s
-extendedae_plus.chat.wireless_transceiver.mode_master=Master
-extendedae_plus.chat.wireless_transceiver.mode_slave=Slave
-extendedae_plus.screen.frequency_input.title=Set Frequency
-extendedae_plus.screen.frequency_input.current=Current Frequency: %s
-extendedae_plus.screen.frequency_input.field=Frequency
-extendedae_plus.screen.frequency_input.confirm=Confirm
 gui.extendedae_plus.labeled_wireless.info=Transceiver Info
-gui.extendedae_plus.labeled_wireless.current_label=Current Label
+gui.extendedae_plus.labeled_wireless.current_label=Current Frequency
 gui.extendedae_plus.labeled_wireless.current_owner=Owner
 gui.extendedae_plus.labeled_wireless.online_count=Online
 gui.extendedae_plus.labeled_wireless.button.new=New
@@ -27,8 +17,8 @@ gui.extendedae_plus.labeled_wireless.button.refresh=DC
 extendedae_plus.jade.frequency=Frequency: %s
 extendedae_plus.jade.channels=Channels: %s
 extendedae_plus.jade.channels_of=Channels: %s/%s
+extendedae_plus.jade.channels_network=Network Channels: %s/%s
 extendedae_plus.jade.owner=Owner: %s
 extendedae_plus.jade.owner.public=Public
-extendedae_plus.jade.label=Label: %s
 extendedae_plus.jade.online=Device Online
 extendedae_plus.jade.offline=Device Offline

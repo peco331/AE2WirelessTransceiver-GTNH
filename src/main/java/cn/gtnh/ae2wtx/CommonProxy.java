@@ -1,6 +1,5 @@
 package cn.gtnh.ae2wtx;
 
-import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 
 import cn.gtnh.ae2wtx.config.ModConfig;
@@ -33,10 +32,8 @@ public class CommonProxy {
         registerRecipes();
     }
 
-    /** Client-only hook for the frequency input screen (overridden in ClientProxy). */
-    public void openFrequencyScreen(int x, int y, int z, long currentFrequency) {}
-
     private void registerRecipes() {
+        // Wireless transceiver = Quantum Ring x8 + Quantum Link (the classic recipe)
         ItemStack ring = appeng.api.AEApi.instance().blocks().blockQuantumRing.stack(1);
         ItemStack link = appeng.api.AEApi.instance().blocks().blockQuantumLink.stack(1);
         if (ring == null || link == null) {
@@ -47,12 +44,5 @@ public class CommonProxy {
                 GTModHandler.RecipeBits.BITS_STD,
                 new Object[] { "RRR", "RLR", "RRR", 'R', ring, 'L', link });
         }
-
-        // Labeled transceiver = paper x4 + emerald x4 + wireless transceiver
-        GTModHandler.addCraftingRecipe(
-            new ItemStack(ModBlocks.blockLabeledWirelessTransceiver),
-            GTModHandler.RecipeBits.BITS_STD,
-            new Object[] { "CAC", "ABA", "CAC", 'A', new ItemStack(Items.paper), 'B',
-                new ItemStack(ModBlocks.blockWirelessTransceiver), 'C', new ItemStack(Items.emerald) });
     }
 }

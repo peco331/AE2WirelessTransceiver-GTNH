@@ -42,6 +42,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     private long frequency = 0L;
     private String labelForDisplay;
+    private boolean locked = false;
     private boolean beingRemoved = false;
 
     private UUID placerId;
@@ -74,6 +75,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             maintainLocalConnections();
         }
         labelLink.updateStatus();
+        updateNetworkChannelStats();
         updateVisualState();
     }
 
@@ -126,7 +128,13 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     private int localConnTick = 0;
 
-    /** Actively create grid connections to adjacent IGridHosts (see plain TE). */
+    /**
+     * Actively create grid connections to adjacent IGridHosts (see plain TE).
+     * Neighboring transceivers are deliberately SKIPPED: two transceivers
+     * placed next to each other must never bridge channels directly - they may
+     * only communicate through their label network (virtual node), so labels
+     * cannot bleed into each other.
+     */
     private void maintainLocalConnections() {
         if (node == null || beingRemoved || isInvalid()) {
             return;
@@ -139,6 +147,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             TileEntity te = worldObj.getTileEntity(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ);
             if (!(te instanceof IGridHost) || te == this) {
                 continue;
+            }
+            if (te instanceof LabeledWirelessTransceiverBlockEntity) {
+                continue; // never direct-connect transceiver to transceiver
             }
             IGridNode other = ((IGridHost) te).getGridNode(dir.getOpposite());
             if (other == null || other == node) {
@@ -156,10 +167,10 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             }
             try {
                 AEApi.instance().createGridConnection(node, other);
-                AE2Wtx.LOG.info("LWTX manual connect OK: " + te.getClass().getSimpleName() + " at "
+                AE2Wtx.LOG.info("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
             } catch (Throwable t) {
-                AE2Wtx.LOG.warn("LWTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
+                AE2Wtx.LOG.warn("WTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
             }
         }
@@ -222,7 +233,11 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public boolean isWorldAccessible() {
-        return true;
+        // false on purpose: rv3's FindConnections would auto-connect ANY
+        // adjacent IGridHost, including a neighboring transceiver (channel
+        // bleed between labels). We create all neighbor connections manually in
+        // maintainLocalConnections(), which skips transceivers.
+        return false;
     }
 
     @Override
@@ -256,7 +271,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public ItemStack getMachineRepresentation() {
-        return new ItemStack(ModBlocks.blockLabeledWirelessTransceiver);
+        return new ItemStack(ModBlocks.blockWirelessTransceiver);
     }
 
     /* ===================== IWirelessEndpoint ===================== */
@@ -308,6 +323,21 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return placerName;
     }
 
+    /* ===================== lock (ported from the removed plain transceiver) ===================== */
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        if (this.locked == locked) {
+            return;
+        }
+        this.locked = locked;
+        markDirty();
+        syncToClients();
+    }
+
     public long getFrequency() {
         return frequency;
     }
@@ -341,6 +371,41 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     public String getLabelForDisplay() {
         return labelForDisplay;
+    }
+
+    /* ===================== whole-network channel stats (Waila) ===================== */
+
+    private int networkChannelsSync = 0;
+    private int netStatsTick = 0;
+
+    /** Total channels used by ALL endpoints of this label (server-side, throttled). */
+    private void updateNetworkChannelStats() {
+        if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
+            return;
+        }
+        if (++netStatsTick < 20) {
+            return;
+        }
+        netStatsTick = 0;
+        int total = 0;
+        if (labelForDisplay != null && !labelForDisplay.isEmpty()) {
+            LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
+            if (reg != null) {
+                LabelNetworkRegistry.LabelNetwork net = reg.getNetwork(worldObj, labelForDisplay, placerId);
+                if (net != null) {
+                    total = net.totalUsedChannels();
+                }
+            }
+        }
+        if (total != networkChannelsSync) {
+            networkChannelsSync = total;
+            syncToClients();
+        }
+    }
+
+    /** Total channels used by all endpoints of this label (Waila display). */
+    public int getNetworkChannelsForDisplay() {
+        return networkChannelsSync;
     }
 
     public void applyLabel(String rawLabel) {
@@ -448,6 +513,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         tag.setLong("frequency", frequency);
         tag.setBoolean("online", onlineSync);
         tag.setInteger("chSync", channelsSync);
+        tag.setBoolean("locked", locked);
+        tag.setInteger("netCh", networkChannelsSync);
         if (labelForDisplay != null) {
             tag.setString("label", labelForDisplay);
         }
@@ -464,6 +531,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         super.readFromNBT(tag);
         this.frequency = tag.getLong("frequency");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
+        this.locked = tag.getBoolean("locked");
         if (tag.hasKey("placerId")) {
             this.placerId = UUID.fromString(tag.getString("placerId"));
         }
@@ -495,6 +563,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.frequency = tag.getLong("frequency");
         this.onlineSync = tag.getBoolean("online");
         this.channelsSync = tag.getInteger("chSync");
+        this.locked = tag.getBoolean("locked");
+        this.networkChannelsSync = tag.getInteger("netCh");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
         this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;

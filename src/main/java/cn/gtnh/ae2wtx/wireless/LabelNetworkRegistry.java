@@ -42,6 +42,8 @@ public class LabelNetworkRegistry extends WorldSavedData {
 
     public static final String SAVE_ID = "ae2wtx_label_networks";
     private static final long CHANNEL_START = 1_000_000L;
+    /** Owner key used when no placer is set (GTNH has no FTB Teams layer). */
+    public static final UUID PUBLIC_NETWORK_UUID = new UUID(0, 0);
 
     private final Map<Key, LabelNetwork> networks = new HashMap<>();
     private long nextChannel = CHANNEL_START;
@@ -105,7 +107,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
         if (label == null) {
             return null;
         }
-        UUID owner = placerId == null ? WirelessMasterRegistry.PUBLIC_NETWORK_UUID : placerId;
+        UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
         Integer dim = ModConfig.wirelessCrossDimEnable ? null : beWorld.provider.dimensionId;
         Key key = new Key(dim, label, owner);
 
@@ -121,7 +123,9 @@ public class LabelNetworkRegistry extends WorldSavedData {
         } else {
             network.ensureVirtualNode(beWorld);
         }
-        network.endpoints.add(new EndpointRef(dim, endpoint.getX(), endpoint.getY(), endpoint.getZ()));
+        // Endpoint refs always store the REAL dimension of the endpoint so
+        // they can be located for stats even when the network key is global.
+        network.endpoints.add(new EndpointRef(beWorld.provider.dimensionId, endpoint.getX(), endpoint.getY(), endpoint.getZ()));
         markDirty();
         return network;
     }
@@ -131,9 +135,9 @@ public class LabelNetworkRegistry extends WorldSavedData {
         if (world == null) {
             return;
         }
-        Integer dim = ModConfig.wirelessCrossDimEnable ? null : world.provider.dimensionId;
+        int realDim = world.provider.dimensionId;
         for (LabelNetwork net : networks.values()) {
-            net.endpoints.removeIf(ref -> ref.matches(dim, endpoint.getX(), endpoint.getY(), endpoint.getZ()));
+            net.endpoints.removeIf(ref -> ref.matches(realDim, endpoint.getX(), endpoint.getY(), endpoint.getZ()));
         }
         markDirty();
     }
@@ -143,7 +147,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
         if (label == null) {
             return null;
         }
-        UUID owner = placerId == null ? WirelessMasterRegistry.PUBLIC_NETWORK_UUID : placerId;
+        UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
         Integer dim = ModConfig.wirelessCrossDimEnable ? null : world.provider.dimensionId;
         return networks.get(new Key(dim, label, owner));
     }
@@ -153,7 +157,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
         if (label == null) {
             return false;
         }
-        UUID owner = placerId == null ? WirelessMasterRegistry.PUBLIC_NETWORK_UUID : placerId;
+        UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
         Integer dim = ModConfig.wirelessCrossDimEnable ? null : world.provider.dimensionId;
         LabelNetwork net = networks.remove(new Key(dim, label, owner));
         if (net != null) {
@@ -165,7 +169,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
     }
 
     public synchronized List<Snapshot> listNetworks(UUID placerId) {
-        UUID owner = placerId == null ? WirelessMasterRegistry.PUBLIC_NETWORK_UUID : placerId;
+        UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
         Integer dim = ModConfig.wirelessCrossDimEnable ? null : 0; // list is global under cross-dim; else overworld scope
         List<Snapshot> list = new ArrayList<>();
         for (Map.Entry<Key, LabelNetwork> entry : networks.entrySet()) {
@@ -304,6 +308,32 @@ public class LabelNetworkRegistry extends WorldSavedData {
             return endpoints.size();
         }
 
+        /**
+         * Sum of the channels currently used by all endpoints of this label
+         * network (server-side only). Endpoints whose tile is gone or not a
+         * transceiver are skipped (stale refs). Gives players a view of the
+         * whole label's channel usage so they know how many channels remain.
+         */
+        public int totalUsedChannels() {
+            MinecraftServer server = MinecraftServer.getServer();
+            if (server == null || server.worldServers == null) {
+                return 0;
+            }
+            int total = 0;
+            for (EndpointRef ref : endpoints) {
+                World w = server.worldServerForDimension(ref.dim);
+                if (w == null) {
+                    continue;
+                }
+                net.minecraft.tileentity.TileEntity te = w.getTileEntity(ref.x, ref.y, ref.z);
+                if (te instanceof cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) {
+                    total += ((cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) te)
+                        .getUsedChannelsForDisplay();
+                }
+            }
+            return total;
+        }
+
         /** Ensure the virtual node exists (recreate after world load). */
         public synchronized boolean ensureVirtualNode(World anyWorld) {
             if (virtualNode != null && !virtualNode.isActive()) {
@@ -376,15 +406,13 @@ public class LabelNetworkRegistry extends WorldSavedData {
             this.z = z;
         }
 
-        boolean matches(Integer currentDim, int cx, int cy, int cz) {
-            return Objects.equals(dim, currentDim) && x == cx && y == cy && z == cz;
+        boolean matches(int currentDim, int cx, int cy, int cz) {
+            return dim == currentDim && x == cx && y == cy && z == cz;
         }
 
         NBTTagCompound save() {
             NBTTagCompound tag = new NBTTagCompound();
-            if (dim != null) {
-                tag.setInteger("dim", dim);
-            }
+            tag.setInteger("dim", dim);
             tag.setInteger("x", x);
             tag.setInteger("y", y);
             tag.setInteger("z", z);
@@ -392,8 +420,9 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
 
         static EndpointRef load(NBTTagCompound tag) {
-            Integer dim = tag.hasKey("dim") ? tag.getInteger("dim") : null;
-            return new EndpointRef(dim, tag.getInteger("x"), tag.getInteger("y"), tag.getInteger("z"));
+            // legacy data may lack "dim" (global refs) - assume overworld
+            int d = tag.hasKey("dim") ? tag.getInteger("dim") : 0;
+            return new EndpointRef(d, tag.getInteger("x"), tag.getInteger("y"), tag.getInteger("z"));
         }
     }
 
@@ -480,7 +509,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
 
         @Override
         public ItemStack getMachineRepresentation() {
-            return new ItemStack(ModBlocks.blockLabeledWirelessTransceiver);
+            return new ItemStack(ModBlocks.blockWirelessTransceiver);
         }
     }
 }

@@ -55,6 +55,11 @@ public class LabelApplyPacket implements IMessage {
             TileEntity te = world.getTileEntity(msg.x, msg.y, msg.z);
             if (te instanceof LabeledWirelessTransceiverBlockEntity) {
                 LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
+                if (lte.isLocked()) {
+                    player.addChatMessage(new net.minecraft.util.ChatComponentTranslation(
+                        "extendedae_plus.chat.wireless_transceiver.locked"));
+                    return null;
+                }
                 if (msg.label == null || msg.label.isEmpty()) {
                     lte.clearLabel();
                 } else {
