@@ -25,6 +25,9 @@ public class AE2Wtx {
     public static final String NAME = "AE2 Wireless Transceiver (GTNH)";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
+    @Mod.Instance(MODID)
+    public static AE2Wtx instance;
+
     public static final CreativeTabs CREATIVE_TAB = new CreativeTabs(MODID) {
 
         @Override

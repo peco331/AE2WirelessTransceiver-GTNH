@@ -92,6 +92,13 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
             return true;
         }
 
+        if (wrench) {
+            // open the frequency input GUI
+            cpw.mods.fml.common.network.internal.FMLNetworkHandler
+                .openGui(player, cn.gtnh.ae2wtx.AE2Wtx.instance, cn.gtnh.ae2wtx.gui.ModGuiHandler.GUI_FREQUENCY, world, x, y, z);
+            return true;
+        }
+
         if (wte.isLocked()) {
             player.addChatMessage(new ChatComponentText("extendedae_plus.chat.wireless_transceiver.locked"));
             return true;

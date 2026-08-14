@@ -1,1 +1,4 @@
 itemGroup.ae2wtx=AE2 Wireless Transceiver
+tile.ae2wtx.wireless_transceiver.name=Wireless Transceiver
+tile.ae2wtx.labeled_wireless_transceiver.name=Labeled Wireless Transceiver
+item.ae2wtx.channel_card.name=Channel Card
