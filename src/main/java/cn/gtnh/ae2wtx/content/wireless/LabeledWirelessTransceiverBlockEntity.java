@@ -5,6 +5,9 @@ import java.util.UUID;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.Packet;
+import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -197,6 +200,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.placerId = placerId;
         this.placerName = placerName;
         markDirty();
+        syncToClients();
     }
 
     public UUID getPlacerId() {
@@ -231,6 +235,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.labelLink.setTarget(network);
         updateVisualState();
         markDirty();
+        syncToClients();
     }
 
     public void clearLabel() {
@@ -243,6 +248,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.labelLink.clearTarget();
         updateVisualState();
         markDirty();
+        syncToClients();
     }
 
     public void refreshLabel(boolean ensureRegister) {
@@ -270,6 +276,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
         updateVisualState();
         markDirty();
+        syncToClients();
     }
 
     /* ===================== visual state (metadata 0/1 online) ===================== */
@@ -321,6 +328,35 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
         if (tag.hasKey("placerName")) {
             this.placerName = tag.getString("placerName");
+        }
+    }
+
+    /* ===================== client sync ===================== */
+
+    /** Push current state to clients so Waila / block displays stay fresh. */
+    private void syncToClients() {
+        if (worldObj != null && !worldObj.isRemote && !beingRemoved && !isInvalid()) {
+            worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
+        }
+    }
+
+    @Override
+    public Packet getDescriptionPacket() {
+        NBTTagCompound tag = new NBTTagCompound();
+        writeToNBT(tag);
+        return new S35PacketUpdateTileEntity(xCoord, yCoord, zCoord, 1, tag);
+    }
+
+    @Override
+    public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity pkt) {
+        NBTTagCompound tag = pkt.func_148857_g();
+        // read client-visible state only (no server-side registry side effects)
+        this.frequency = tag.getLong("frequency");
+        this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
+        this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
+        this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;
+        if (worldObj != null) {
+            worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
         }
     }
 }

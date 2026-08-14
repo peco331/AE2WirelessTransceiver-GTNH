@@ -5,6 +5,9 @@ import java.util.UUID;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.Packet;
+import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -235,6 +238,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             }
         }
         markDirty();
+        syncToClients();
     }
 
     public UUID getPlacerId() {
@@ -263,6 +267,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             slaveLink.setFrequency(frequency);
         }
         markDirty();
+        syncToClients();
     }
 
     public boolean isMasterMode() {
@@ -289,6 +294,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             slaveLink.setFrequency(frequency);
         }
         markDirty();
+        syncToClients();
     }
 
     public boolean isLocked() {
@@ -301,6 +307,7 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         }
         this.locked = locked;
         markDirty();
+        syncToClients();
     }
 
     /* ===================== visual state (metadata 0-5) ===================== */
@@ -362,6 +369,36 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         }
         if (tag.hasKey("placerName")) {
             this.placerName = tag.getString("placerName");
+        }
+    }
+
+    /* ===================== client sync ===================== */
+
+    /** Push current state to clients so Waila / block displays stay fresh. */
+    private void syncToClients() {
+        if (worldObj != null && !worldObj.isRemote && !beingRemoved && !isInvalid()) {
+            worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
+        }
+    }
+
+    @Override
+    public Packet getDescriptionPacket() {
+        NBTTagCompound tag = new NBTTagCompound();
+        writeToNBT(tag);
+        return new S35PacketUpdateTileEntity(xCoord, yCoord, zCoord, 1, tag);
+    }
+
+    @Override
+    public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity pkt) {
+        NBTTagCompound tag = pkt.func_148857_g();
+        // read client-visible state only (no server-side link re-application)
+        this.frequency = tag.getLong("frequency");
+        this.masterMode = tag.getBoolean("master");
+        this.locked = tag.getBoolean("locked");
+        this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
+        this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;
+        if (worldObj != null) {
+            worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
         }
     }
 }

@@ -14,6 +14,8 @@ import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.AE2Wtx;
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -23,9 +25,11 @@ import cpw.mods.fml.relauncher.SideOnly;
  * <li>right click air: channel +1 (sneak: -1, floor 0)</li>
  * <li>sneak + left click air/block: bind/unbind the current player's UUID</li>
  * <li>sneak + left click a transceiver: write the card's owner into it</li>
+ * <li>implements AE2 IUpgradeModule so it fits into AE2 upgrade slots
+ * (ME Interface, import/export/storage bus), mirroring ExtendedAE_Plus</li>
  * </ul>
  */
-public class ChannelCardItem extends Item {
+public class ChannelCardItem extends Item implements IUpgradeModule {
 
     public static final String TAG_CHANNEL = "channel";
     public static final String TAG_OWNER_UUID = "ownerUUID";
@@ -140,6 +144,17 @@ public class ChannelCardItem extends Item {
     public void registerIcons(IIconRegister reg) {
         // 1.7.10 prepends "textures/items/" automatically (no "items/" segment)
         icon = reg.registerIcon("ae2wtx:channel_card");
+    }
+
+    /**
+     * AE2 upgrade-module hook: lets the card sit in AE2 upgrade slots
+     * (registered for ME Interface + import/export/storage bus, max 1 each).
+     * Uses PATTERN_CAPACITY, which no rv3 machine actually reads, so the card
+     * has no fake upgrade side effects.
+     */
+    @Override
+    public Upgrades getType(ItemStack itemStack) {
+        return Upgrades.PATTERN_CAPACITY;
     }
 
     @Override
