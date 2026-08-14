@@ -75,15 +75,20 @@ public final class DeviceWirelessLinkManager {
                 teardown();
                 return;
             }
-            if (channel != lastChannel || !Objects.equals(owner, lastOwner)) {
+            if (!loggedOnce || channel != lastChannel || !Objects.equals(owner, lastOwner)) {
+                loggedOnce = true;
                 lastChannel = channel;
                 lastOwner = owner;
+                cn.gtnh.ae2wtx.AE2Wtx.LOG.info("CardLink: device freq=" + slave.getFrequency()
+                    + " card ch=" + channel + " owner=" + (owner == null ? "null" : owner.toString().substring(0, 8)));
                 slave.setPlacerId(owner);
                 slave.setFrequency(channel);
             } else {
                 slave.updateStatus();
             }
         }
+
+        private boolean loggedOnce = false;
 
         private void teardown() {
             if (lastChannel != 0L || slave.isConnected()) {

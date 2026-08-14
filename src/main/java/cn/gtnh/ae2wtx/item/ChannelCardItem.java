@@ -33,6 +33,7 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
 
     public static final String TAG_CHANNEL = "channel";
     public static final String TAG_OWNER_UUID = "ownerUUID";
+    public static final String TAG_OWNER_NAME = "ownerName";
 
     @SideOnly(Side.CLIENT)
     private IIcon icon;
@@ -78,10 +79,25 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
         return null;
     }
 
+    public static void setOwnerName(ItemStack stack, String name) {
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null) {
+            tag = new NBTTagCompound();
+            stack.setTagCompound(tag);
+        }
+        tag.setString(TAG_OWNER_NAME, name == null ? "" : name);
+    }
+
+    public static String getOwnerName(ItemStack stack) {
+        NBTTagCompound tag = stack.getTagCompound();
+        return tag != null && tag.hasKey(TAG_OWNER_NAME) ? tag.getString(TAG_OWNER_NAME) : null;
+    }
+
     public static void clearOwner(ItemStack stack) {
         NBTTagCompound tag = stack.getTagCompound();
         if (tag != null) {
             tag.removeTag(TAG_OWNER_UUID);
+            tag.removeTag(TAG_OWNER_NAME);
         }
     }
 
@@ -106,6 +122,7 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
             player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.owner.cleared"));
         } else {
             setOwnerUUID(stack, player.getUniqueID());
+            setOwnerName(stack, player.getCommandSenderName());
             player.addChatMessage(new ChatComponentTranslation(
                 "item.extendedae_plus.channel_card.owner.bound", player.getCommandSenderName()));
         }
@@ -149,15 +166,25 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
                 cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity wte =
                     (cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity) te;
                 UUID cardOwner = getOwnerUUID(stack);
+                String cardName = getOwnerName(stack);
                 if (cardOwner != null) {
-                    wte.setPlacerId(cardOwner, player.getCommandSenderName());
+                    // write the card's owner (with its recorded name) into the transceiver
+                    wte.setPlacerId(cardOwner, cardName != null ? cardName : player.getCommandSenderName());
                     player.addChatMessage(new ChatComponentTranslation(
                         "extendedae_plus.chat.wireless_transceiver.bound_to",
-                        cardOwner.toString().substring(0, 8)));
+                        cardName != null ? cardName : cardOwner.toString().substring(0, 8)));
                 } else {
                     wte.setPlacerId(player.getUniqueID(), player.getCommandSenderName());
                     player.addChatMessage(new ChatComponentTranslation(
                         "extendedae_plus.chat.wireless_transceiver.card_unbound"));
+                }
+                // and copy the transceiver's channel onto the card so inserting the
+                // card into an AE device carries the channel along
+                long teChannel = wte.getFrequency();
+                if (teChannel > 0 && getChannel(stack) != teChannel) {
+                    setChannel(stack, teChannel);
+                    player.addChatMessage(new ChatComponentTranslation(
+                        "item.extendedae_plus.channel_card.set", teChannel));
                 }
             }
             return true;
@@ -176,7 +203,13 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
         }
         UUID owner = getOwnerUUID(stack);
         if (owner != null) {
-            list.add(StatCollector.translateToLocalFormatted("item.extendedae_plus.channel_card.owner.player", owner.toString().substring(0, 8)));
+            String name = getOwnerName(stack);
+            if (name != null && !name.isEmpty()) {
+                list.add(StatCollector.translateToLocalFormatted("item.extendedae_plus.channel_card.owner.team", name));
+            } else {
+                list.add(StatCollector.translateToLocalFormatted("item.extendedae_plus.channel_card.owner.player",
+                    owner.toString().substring(0, 8)));
+            }
         } else {
             list.add(StatCollector.translateToLocal("item.extendedae_plus.channel_card.owner.unset"));
         }
