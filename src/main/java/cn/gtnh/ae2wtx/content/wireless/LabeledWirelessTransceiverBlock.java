@@ -60,22 +60,8 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
         if (!(te instanceof LabeledWirelessTransceiverBlockEntity)) {
             return false;
         }
-        ItemStack held = player.getHeldItem();
-        // wrench + sneaking: disassemble following AE2 vanilla behavior
-        // (item spawned on the ground, then block removed)
-        if (player.isSneaking() && WirelessTransceiverBlock.isWrench(held)) {
-            ItemStack drop = new ItemStack(this);
-            float f = 0.7F;
-            double dx = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
-            double dy = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
-            double dz = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
-            EntityItem ei = new EntityItem(world, x + dx, y + dy, z + dz, drop);
-            ei.delayBeforeCanPickup = 10;
-            world.spawnEntityInWorld(ei);
-            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
-            world.setBlockToAir(x, y, z);
-            return true;
-        }
+        // NOTE: wrench + sneak + right (disassemble) is handled by
+        // cn.gtnh.ae2wtx.compat.WrenchHandler (Forge event).
         if (player.isSneaking()) {
             return false;
         }

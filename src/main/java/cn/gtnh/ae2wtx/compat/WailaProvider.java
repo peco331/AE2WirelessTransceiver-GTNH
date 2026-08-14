@@ -48,6 +48,10 @@ public class WailaProvider implements IWailaDataProvider {
             currenttip.add(StatCollector.translateToLocal(
                 wte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
                     : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
+            // TEMP DEBUG: grid node diagnostics (synced from server)
+            currenttip.add("node=" + (wte.getGridNode() == null ? "?" : "?") + " grid="
+                + (wte.isDebugNodeHasGrid() ? "ok" : "null") + " active="
+                + (wte.isDebugNodeActive() ? "true" : "false") + " conns=" + wte.getDebugNodeConns());
             java.util.UUID owner = wte.getPlacerId();
             if (owner == null) {
                 currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.owner.public"));

@@ -39,6 +39,11 @@ public final class NetworkHandler {
             LabelListResponsePacket.class,
             nextId++,
             Side.CLIENT);
+        CHANNEL.registerMessage(
+            OpenFrequencyScreenPacket.Handler.class,
+            OpenFrequencyScreenPacket.class,
+            nextId++,
+            Side.CLIENT);
         AE2Wtx.LOG.info("ae2wtx network channel initialized");
     }
 }

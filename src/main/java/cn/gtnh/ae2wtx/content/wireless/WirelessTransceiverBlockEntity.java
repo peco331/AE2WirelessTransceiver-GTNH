@@ -56,6 +56,24 @@ public class WirelessTransceiverBlockEntity extends TileEntity
 
     private boolean firstTickDone = false;
 
+    // TEMP DEBUG: grid diagnostics synced to client for Waila
+    private boolean debugNodeActive = false;
+    private boolean debugNodeHasGrid = false;
+    private int debugNodeConns = 0;
+    private boolean debugNodeActivePrev = false;
+
+    public boolean isDebugNodeActive() {
+        return debugNodeActive;
+    }
+
+    public boolean isDebugNodeHasGrid() {
+        return debugNodeHasGrid;
+    }
+
+    public int getDebugNodeConns() {
+        return debugNodeConns;
+    }
+
     private WirelessMasterLink masterLink;
     private WirelessSlaveLink slaveLink;
 
@@ -75,7 +93,6 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             firstTickDone = true;
             if (node == null) {
                 node = AEApi.instance().createGridNode(this);
-                node.updateState();
             }
             // Re-apply mode & frequency after (re)load.
             if (masterMode) {
@@ -84,11 +101,127 @@ public class WirelessTransceiverBlockEntity extends TileEntity
                 slaveLink.setFrequency(frequency);
             }
         }
+        if (node != null) {
+            // rv3 Grid.update() never calls GridNode.updateState(), so the
+            // neighbor scan (FindConnections) only runs when we call it.
+            // Periodically re-running it is what actually joins/keeps this node
+            // in the local ME grid (EAEP's managed node does this internally).
+            node.updateState();
+            syncSecurityKey();
+            applyNodeIdentity();
+            maintainLocalConnections();
+        }
         if (!masterMode) {
             // Slaves periodically maintain their connection.
             slaveLink.updateStatus();
         }
         updateVisualState();
+    }
+
+    private long lastSecurityKey = Long.MIN_VALUE;
+
+    /**
+     * Root-cause fix for "cannot connect to ME network": rv3's
+     * GridConnection/securityCheck compares per-node security keys. AE2's own
+     * nodes load their key from NBT (getLong("k"), which is 0 when absent),
+     * while freshly created nodes default to -1 — so a powered grid (controller)
+     * rejects our node with SecurityConnectionException. Joining the grid's
+     * security realm (SecurityCache key) makes the keys equal and the
+     * connection allowed.
+     */
+    private void syncSecurityKey() {
+        if (node == null) {
+            return;
+        }
+        IGrid grid = node.getGrid();
+        if (grid == null) {
+            return;
+        }
+        try {
+            appeng.me.cache.SecurityCache sc = (appeng.me.cache.SecurityCache) grid
+                .getCache(appeng.api.networking.security.ISecurityGrid.class);
+            if (sc == null) {
+                return;
+            }
+            long key = sc.getSecurityKey();
+            if (key != lastSecurityKey) {
+                lastSecurityKey = key;
+                if (node instanceof appeng.me.GridNode) {
+                    ((appeng.me.GridNode) node).setLastSecurityKey(key);
+                    AE2Wtx.LOG.info("WTX security key synced: " + key + " at " + xCoord + "," + yCoord + "," + zCoord);
+                }
+            }
+        } catch (Throwable t) {
+            // grid cache hiccup - retry next tick
+        }
+    }
+
+    /**
+     * Give the node the placer's AE2 player id. Needed when the target grid has
+     * a Security Station: securityCheck then verifies the node's player
+     * permissions instead of outright rejecting the connection, and once the
+     * node joins the grid syncSecurityKey() takes over.
+     */
+    private void applyNodeIdentity() {
+        if (node == null || placerId == null) {
+            return;
+        }
+        try {
+            com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(placerId,
+                placerName == null ? "" : placerName);
+            int pid = appeng.api.AEApi.instance().registries().players().getID(profile);
+            if (pid >= 0 && node.getPlayerID() != pid) {
+                node.setPlayerID(pid);
+            }
+        } catch (Throwable t) {
+            // registry hiccup - retry next tick
+        }
+    }
+
+    private int localConnTick = 0;
+
+    /**
+     * Belt-and-braces neighbor discovery: rv3's FindConnections can silently
+     * fail to join the node into a neighbor grid, so we actively scan the six
+     * adjacent blocks and create the grid connections ourselves (the same
+     * mechanism the wireless slave link uses successfully).
+     */
+    private void maintainLocalConnections() {
+        if (node == null || beingRemoved || isInvalid()) {
+            return;
+        }
+        if (++localConnTick < 5) {
+            return;
+        }
+        localConnTick = 0;
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            TileEntity te = worldObj.getTileEntity(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ);
+            if (!(te instanceof IGridHost) || te == this) {
+                continue;
+            }
+            IGridNode other = ((IGridHost) te).getGridNode(dir.getOpposite());
+            if (other == null || other == node) {
+                continue;
+            }
+            boolean has = false;
+            for (IGridConnection c : node.getConnections()) {
+                if (c.a() == other || c.b() == other) {
+                    has = true;
+                    break;
+                }
+            }
+            if (has) {
+                continue;
+            }
+            try {
+                AEApi.instance().createGridConnection(node, other);
+                AE2Wtx.LOG.info("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
+                    + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
+            } catch (Throwable t) {
+                AE2Wtx.LOG.warn("WTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
+                    + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
+            }
+        }
     }
 
     @Override
@@ -317,6 +450,16 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             return;
         }
         IGridNode n = node;
+        // TEMP DEBUG: refresh diagnostics
+        boolean dbgGrid = n != null && n.getGrid() != null;
+        boolean dbgActive = n != null && n.isActive();
+        int dbgConns = n == null ? 0 : n.getConnections().size();
+        if (dbgGrid != debugNodeHasGrid || dbgActive != debugNodeActive || dbgConns != debugNodeConns) {
+            debugNodeHasGrid = dbgGrid;
+            debugNodeActive = dbgActive;
+            debugNodeConns = dbgConns;
+            syncToClients();
+        }
         int newState = 5; // default: no connection
         if (n != null && n.isActive()) {
             int usedChannels = 0;
@@ -334,6 +477,12 @@ public class WirelessTransceiverBlockEntity extends TileEntity
             } else if (usedChannels > 0) {
                 newState = 0;
             }
+        }
+        // TEMP DEBUG: log first connection state change
+        if (n != null && debugNodeActive != debugNodeActivePrev) {
+            debugNodeActivePrev = debugNodeActive;
+            cn.gtnh.ae2wtx.AE2Wtx.LOG.info("WTX state: active=" + debugNodeActive + " grid=" + debugNodeHasGrid
+                + " conns=" + debugNodeConns + " at " + xCoord + "," + yCoord + "," + zCoord);
         }
         if (worldObj.getBlockMetadata(xCoord, yCoord, zCoord) != newState) {
             worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, newState, 3);
@@ -354,6 +503,10 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         if (placerName != null) {
             tag.setString("placerName", placerName);
         }
+        // TEMP DEBUG
+        tag.setBoolean("dbgGrid", debugNodeHasGrid);
+        tag.setBoolean("dbgActive", debugNodeActive);
+        tag.setInteger("dbgConns", debugNodeConns);
     }
 
     @Override
@@ -397,6 +550,10 @@ public class WirelessTransceiverBlockEntity extends TileEntity
         this.locked = tag.getBoolean("locked");
         this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
         this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;
+        // TEMP DEBUG
+        this.debugNodeHasGrid = tag.getBoolean("dbgGrid");
+        this.debugNodeActive = tag.getBoolean("dbgActive");
+        this.debugNodeConns = tag.getInteger("dbgConns");
         if (worldObj != null) {
             worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
         }

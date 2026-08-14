@@ -7,7 +7,6 @@ import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
@@ -136,35 +135,9 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         WirelessTransceiverBlockEntity wte = (WirelessTransceiverBlockEntity) te;
         ItemStack held = player.getHeldItem();
         boolean sneaking = player.isSneaking();
-        boolean wrench = isWrench(held);
-
-        // wrench + sneaking: disassemble following AE2 vanilla behavior:
-        // the block item is spawned as an entity on the ground (not into the
-        // player inventory), then the block is removed.
-        if (wrench && sneaking) {
-            ItemStack drop = new ItemStack(this);
-            float f = 0.7F;
-            double dx = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
-            double dy = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
-            double dz = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
-            EntityItem ei = new EntityItem(world, x + dx, y + dy, z + dz, drop);
-            ei.delayBeforeCanPickup = 10;
-            world.spawnEntityInWorld(ei);
-            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
-            world.setBlockToAir(x, y, z);
-            return true;
-        }
-
-        // wrench (not sneaking): toggle lock (matches EAEP rotate -> lock)
-        if (wrench) {
-            boolean newLocked = !wte.isLocked();
-            wte.setLocked(newLocked);
-            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.lever", 0.5F, newLocked ? 0.6F : 0.9F);
-            player.addChatMessage(new ChatComponentTranslation(
-                newLocked ? "extendedae_plus.chat.wireless_transceiver.locked_status"
-                    : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
-            return true;
-        }
+        // NOTE: wrench interactions (lock/disassemble) are handled by
+        // cn.gtnh.ae2wtx.compat.WrenchHandler (Forge events), matching EAEP's
+        // WrenchHook; wrench events are canceled there so we never reach this.
 
         if (wte.isLocked()) {
             player.addChatMessage(new ChatComponentTranslation("extendedae_plus.chat.wireless_transceiver.locked"));
@@ -198,13 +171,9 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         ItemStack held = player.getHeldItem();
         boolean sneaking = player.isSneaking();
 
-        // wrench + sneaking: open frequency input screen (client side)
-        if (sneaking && isWrench(held)) {
-            if (world.isRemote) {
-                cn.gtnh.ae2wtx.AE2Wtx.proxy.openFrequencyScreen(x, y, z, wte.getFrequency());
-            }
-            return;
-        }
+        // NOTE: wrench + sneak + left (frequency input screen) is handled by
+        // cn.gtnh.ae2wtx.compat.WrenchHandler which cancels the harvest event;
+        // onBlockClicked alone cannot prevent the block from being mined.
 
         if (world.isRemote) {
             return;

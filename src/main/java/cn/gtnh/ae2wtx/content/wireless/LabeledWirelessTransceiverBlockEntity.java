@@ -12,6 +12,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import cn.gtnh.ae2wtx.AE2Wtx;
 import cn.gtnh.ae2wtx.config.ModConfig;
 import cn.gtnh.ae2wtx.init.ModBlocks;
 import cn.gtnh.ae2wtx.wireless.IWirelessEndpoint;
@@ -22,6 +23,7 @@ import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridNotification;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridBlock;
+import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.energy.IEnergyGrid;
@@ -60,12 +62,107 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             firstTickDone = true;
             if (node == null) {
                 node = AEApi.instance().createGridNode(this);
-                node.updateState();
             }
             refreshLabel(true);
         }
+        if (node != null) {
+            // rv3 Grid.update() never calls GridNode.updateState(); periodic
+            // re-runs are what join/keep this node in the local ME grid.
+            node.updateState();
+            syncSecurityKey();
+            applyNodeIdentity();
+            maintainLocalConnections();
+        }
         labelLink.updateStatus();
         updateVisualState();
+    }
+
+    private long lastSecurityKey = Long.MIN_VALUE;
+
+    /** Join the grid's security realm so GridConnection's securityCheck passes. */
+    private void syncSecurityKey() {
+        if (node == null) {
+            return;
+        }
+        IGrid grid = node.getGrid();
+        if (grid == null) {
+            return;
+        }
+        try {
+            appeng.me.cache.SecurityCache sc = (appeng.me.cache.SecurityCache) grid
+                .getCache(appeng.api.networking.security.ISecurityGrid.class);
+            if (sc == null) {
+                return;
+            }
+            long key = sc.getSecurityKey();
+            if (key != lastSecurityKey) {
+                lastSecurityKey = key;
+                if (node instanceof appeng.me.GridNode) {
+                    ((appeng.me.GridNode) node).setLastSecurityKey(key);
+                    AE2Wtx.LOG.info("LWTX security key synced: " + key + " at " + xCoord + "," + yCoord + "," + zCoord);
+                }
+            }
+        } catch (Throwable t) {
+            // grid cache hiccup - retry next tick
+        }
+    }
+
+    /** Give the node the placer's AE2 player id (needed for Security Station grids). */
+    private void applyNodeIdentity() {
+        if (node == null || placerId == null) {
+            return;
+        }
+        try {
+            com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(placerId,
+                placerName == null ? "" : placerName);
+            int pid = appeng.api.AEApi.instance().registries().players().getID(profile);
+            if (pid >= 0 && node.getPlayerID() != pid) {
+                node.setPlayerID(pid);
+            }
+        } catch (Throwable t) {
+            // registry hiccup - retry next tick
+        }
+    }
+
+    private int localConnTick = 0;
+
+    /** Actively create grid connections to adjacent IGridHosts (see plain TE). */
+    private void maintainLocalConnections() {
+        if (node == null || beingRemoved || isInvalid()) {
+            return;
+        }
+        if (++localConnTick < 5) {
+            return;
+        }
+        localConnTick = 0;
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            TileEntity te = worldObj.getTileEntity(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ);
+            if (!(te instanceof IGridHost) || te == this) {
+                continue;
+            }
+            IGridNode other = ((IGridHost) te).getGridNode(dir.getOpposite());
+            if (other == null || other == node) {
+                continue;
+            }
+            boolean has = false;
+            for (IGridConnection c : node.getConnections()) {
+                if (c.a() == other || c.b() == other) {
+                    has = true;
+                    break;
+                }
+            }
+            if (has) {
+                continue;
+            }
+            try {
+                AEApi.instance().createGridConnection(node, other);
+                AE2Wtx.LOG.info("LWTX manual connect OK: " + te.getClass().getSimpleName() + " at "
+                    + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
+            } catch (Throwable t) {
+                AE2Wtx.LOG.warn("LWTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
+                    + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
+            }
+        }
     }
 
     @Override
