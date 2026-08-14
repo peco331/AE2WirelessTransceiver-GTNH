@@ -192,17 +192,16 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 AEApi.instance().createGridConnection(node, other);
                 AE2Wtx.LOG.debug("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
-                // The cable did NOT create this connection, so its CableBus
-                // visual state (connected endpoints) never refreshed. Recompute
-                // connections, push part state to the client and notify
-                // neighbors so the cable shows the joined appearance.
+                // The cable did NOT create this connection. Do NOT call
+                // CableBusContainer.updateConnections() or node.updateState()
+                // on the cable: that re-runs its FindConnections, which tries
+                // to re-create our already-existing link, fails with
+                // ExistingConnectionException and CableBus removes the part
+                // from the world (cable drops as an item!). Only a harmless
+                // markForUpdate so the client re-renders the block.
                 if (te instanceof appeng.tile.networking.TileCableBus) {
                     try {
-                        appeng.parts.CableBusContainer cb =
-                            ((appeng.tile.networking.TileCableBus) te).getCableBus();
-                        cb.updateConnections();
-                        cb.markForUpdate();
-                        ((appeng.tile.networking.TileCableBus) te).partChanged();
+                        ((appeng.tile.networking.TileCableBus) te).getCableBus().markForUpdate();
                     } catch (Throwable ignored) {
                         // visual only - never break the connection path
                     }
