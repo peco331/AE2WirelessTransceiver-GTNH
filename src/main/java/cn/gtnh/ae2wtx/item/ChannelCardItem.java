@@ -138,7 +138,8 @@ public class ChannelCardItem extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void registerIcons(IIconRegister reg) {
-        icon = reg.registerIcon("ae2wtx:items/channel_card");
+        // 1.7.10 prepends "textures/items/" automatically (no "items/" segment)
+        icon = reg.registerIcon("ae2wtx:channel_card");
     }
 
     @Override

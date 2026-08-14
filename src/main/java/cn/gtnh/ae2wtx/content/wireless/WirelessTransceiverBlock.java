@@ -138,14 +138,19 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
         boolean sneaking = player.isSneaking();
         boolean wrench = isWrench(held);
 
-        // wrench + sneaking: disassemble into inventory (matches EAEP disassemble behavior)
+        // wrench + sneaking: disassemble following AE2 vanilla behavior:
+        // the block item is spawned as an entity on the ground (not into the
+        // player inventory), then the block is removed.
         if (wrench && sneaking) {
-            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
             ItemStack drop = new ItemStack(this);
-            if (!player.inventory.addItemStackToInventory(drop)) {
-                EntityItem ei = new EntityItem(world, x + 0.5D, y + 0.5D, z + 0.5D, drop);
-                world.spawnEntityInWorld(ei);
-            }
+            float f = 0.7F;
+            double dx = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
+            double dy = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
+            double dz = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
+            EntityItem ei = new EntityItem(world, x + dx, y + dy, z + dz, drop);
+            ei.delayBeforeCanPickup = 10;
+            world.spawnEntityInWorld(ei);
+            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
             world.setBlockToAir(x, y, z);
             return true;
         }
@@ -277,12 +282,14 @@ public class WirelessTransceiverBlock extends Block implements ITileEntityProvid
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        itemIcon = reg.registerIcon("ae2wtx:block/wireless_transceiver");
+        // 1.7.10 prepends "textures/blocks/" automatically, so paths must NOT
+        // contain the "block/" segment (files live under textures/blocks/...)
+        itemIcon = reg.registerIcon("ae2wtx:wireless_transceiver");
         sideIcons = new IIcon[6];
         topIcons = new IIcon[6];
         for (int i = 0; i < 6; i++) {
-            sideIcons[i] = reg.registerIcon("ae2wtx:block/wireless_transceiver/wireless_transceiver_" + i);
-            topIcons[i] = reg.registerIcon("ae2wtx:block/wireless_transceiver/wireless_transceiver_" + i + "_top");
+            sideIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i);
+            topIcons[i] = reg.registerIcon("ae2wtx:wireless_transceiver/wireless_transceiver_" + i + "_top");
         }
     }
 

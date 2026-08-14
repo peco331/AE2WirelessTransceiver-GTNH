@@ -5,6 +5,7 @@ import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -59,6 +60,22 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
         if (!(te instanceof LabeledWirelessTransceiverBlockEntity)) {
             return false;
         }
+        ItemStack held = player.getHeldItem();
+        // wrench + sneaking: disassemble following AE2 vanilla behavior
+        // (item spawned on the ground, then block removed)
+        if (player.isSneaking() && WirelessTransceiverBlock.isWrench(held)) {
+            ItemStack drop = new ItemStack(this);
+            float f = 0.7F;
+            double dx = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
+            double dy = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
+            double dz = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
+            EntityItem ei = new EntityItem(world, x + dx, y + dy, z + dz, drop);
+            ei.delayBeforeCanPickup = 10;
+            world.spawnEntityInWorld(ei);
+            world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
+            world.setBlockToAir(x, y, z);
+            return true;
+        }
         if (player.isSneaking()) {
             return false;
         }
@@ -93,8 +110,9 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        iconOff = reg.registerIcon("ae2wtx:block/wireless_transceiver/lable_wireless_transceiver_off");
-        iconOn = reg.registerIcon("ae2wtx:block/wireless_transceiver/lable_wireless_transceiver_on");
+        // 1.7.10 prepends "textures/blocks/" automatically (no "block/" segment)
+        iconOff = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_off");
+        iconOn = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_on");
     }
 
     @Override
