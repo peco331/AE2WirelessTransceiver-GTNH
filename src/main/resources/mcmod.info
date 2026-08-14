@@ -7,12 +7,13 @@
       "description": "Wireless Transceiver for GTNH 2.9.0-beta1: a GTNH 1.7.10 port of the wireless transceiver from ExtendedAE_Plus (LGPL-3.0). Bridges ME channels wirelessly via named bands (labels), with in-GUI band management, wrench lock, Waila integration, anti channel-bleed and an in-game config screen.",
       "version": "${modVersion}",
       "mcversion": "${minecraftVersion}",
-      "url": "",
+      "url": "https://github.com/peco331/AE2WirelessTransceiver-GTNH",
       "updateUrl": "",
       "authorList": [
-        "GTNH Community Port"
+        "GTNH Community Port",
+        "DeepSeek AI"
       ],
-      "credits": "Original design by GaLicn (ExtendedAE_Plus), licensed under LGPL-3.0",
+      "credits": "Original design by GaLicn (ExtendedAE_Plus), licensed under LGPL-3.0; AI-assisted development by DeepSeek",
       "logoFile": "",
       "screenshots": [],
       "parent": "",

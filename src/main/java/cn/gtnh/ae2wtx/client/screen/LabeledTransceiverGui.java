@@ -56,7 +56,10 @@ public class LabeledTransceiverGui extends GuiContainer {
     private final List<Entry> entries = new ArrayList<>();
     private final List<Entry> filtered = new ArrayList<>();
     private int scrollOffset = 0;
+    /** Last clicked row (used by Set/DC). */
     private int selectedIndex = -1;
+    /** Multi-selection set for Delete (indices into the filtered list). */
+    private final java.util.Set<Integer> selectedIndices = new java.util.HashSet<>();
     private String lastSelectedLabel = "";
     private String currentLabel = "";
     private String currentOwner = "";
@@ -149,16 +152,29 @@ public class LabeledTransceiverGui extends GuiContainer {
         requestList();
     }
 
+    /**
+     * Delete every selected band (multi-select: click rows to toggle), or the
+     * search-box text as a fallback when nothing is selected.
+     */
     private void sendDelete() {
-        String label = getSelectedLabel();
-        if (label == null || label.isEmpty()) {
-            label = searchBox.getText();
+        java.util.List<String> labels = new ArrayList<>();
+        for (int idx : selectedIndices) {
+            if (idx >= 0 && idx < filtered.size()) {
+                labels.add(filtered.get(idx).label);
+            }
         }
-        if (label == null) {
-            label = "";
+        if (labels.isEmpty()) {
+            String t = searchBox.getText();
+            if (t != null && !t.isEmpty()) {
+                labels.add(t);
+            }
         }
-        NetworkHandler.CHANNEL.sendToServer(new LabelDeletePacket(label));
+        for (String label : labels) {
+            NetworkHandler.CHANNEL.sendToServer(new LabelDeletePacket(label));
+        }
         this.lastSelectedLabel = "";
+        this.selectedIndices.clear();
+        this.selectedIndex = -1;
         requestList();
     }
 
@@ -215,6 +231,12 @@ public class LabeledTransceiverGui extends GuiContainer {
             int row = localY / ROW_H;
             int idx = scrollOffset + row;
             if (idx >= 0 && idx < filtered.size()) {
+                // click toggles multi-selection; last clicked row feeds Set/DC
+                if (selectedIndices.contains(idx)) {
+                    selectedIndices.remove(idx);
+                } else {
+                    selectedIndices.add(idx);
+                }
                 selectedIndex = idx;
                 lastSelectedLabel = filtered.get(idx).label;
             }
@@ -296,8 +318,8 @@ public class LabeledTransceiverGui extends GuiContainer {
                 break;
             }
             int y = baseY + row * ROW_H;
-            if (idx == selectedIndex) {
-                drawRect(baseX, y, baseX + LIST_W, y + ROW_H, 0x40FFFFFF);
+            if (selectedIndices.contains(idx)) {
+                drawRect(baseX, y, baseX + LIST_W, y + ROW_H, 0x60FFFFFF);
             }
             String text = fontRendererObj.trimStringToWidth(filtered.get(idx).label, LIST_W - 2);
             int ty = y + (ROW_H - fontRendererObj.FONT_HEIGHT) / 2;
@@ -408,6 +430,7 @@ public class LabeledTransceiverGui extends GuiContainer {
         }
         scrollOffset = 0;
         selectedIndex = -1;
+        selectedIndices.clear();
         if (lastSelectedLabel != null && !lastSelectedLabel.isEmpty()) {
             for (int i = 0; i < filtered.size(); i++) {
                 if (filtered.get(i).label.equals(lastSelectedLabel)) {
