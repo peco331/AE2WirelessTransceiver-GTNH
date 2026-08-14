@@ -1,6 +1,6 @@
 # AE2 Wireless Transceiver (GTNH)
 
-无线收发器 — 将 [ExtendedAE_Plus](https://github.com/GaLinc/ExtendedAE_Plus) 的无线收发器移植到 **GTNH 2.9.0-beta1**（Minecraft 1.7.10 / Forge 10.13.4.1614）。
+无线收发器 — 将 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 的无线收发器移植到 **GTNH 2.9.0-beta1**（Minecraft 1.7.10 / Forge 10.13.4.1614）。
 
 A GTNH 1.7.10 port of the wireless transceiver from ExtendedAE_Plus.
 
@@ -48,12 +48,12 @@ VERSION=1.0.1 gradlew reobfJar
 
 ## 移植说明 / 许可 Porting notes & License
 
-本项目是 [ExtendedAE_Plus](https://github.com/GaLinc/ExtendedAE_Plus)（作者 GaLicn）无线收发器部分的移植与 GTNH 适配，包括：
+本项目是 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn）无线收发器部分的移植与 GTNH 适配，包括：
 
 - 移植的代码：标签网络注册表（`LabelNetworkRegistry`）、连接器（`LabelLink`）、管理 GUI 与布局、Waila/Jade 显示结构、交互设计（锁定 / 拆卸 / 频段操作）、纹理与 GUI 资源
 - GTNH 适配：rv3 网格节点生命周期（`updateState` 手动驱动）、rv3 安全键匹配修复（`setLastSecurityKey` / `setPlayerID`）、防串频道、频道占用统计增强、性能节流
 
-依据上游许可，本项目以 **GNU Lesser General Public License v3.0（LGPL-3.0）** 发布，见 [LICENSE](LICENSE)。上游项目 [ExtendedAE_Plus](https://github.com/GaLinc/ExtendedAE_Plus) 同样以 LGPL-3.0 发布。
+依据上游许可，本项目以 **GNU Lesser General Public License v3.0（LGPL-3.0）** 发布，见 [LICENSE](LICENSE)。上游项目 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 同样以 LGPL-3.0 发布。
 
 **第三方组件声明**：Applied Energistics 2（AE2, MIT License）、GregTech 5 Unofficial、SpongePowered Mixin（MIT License）、ExtendedAE_Plus（LGPL-3.0）。各组件版权归其原作者所有。
 
