@@ -29,6 +29,7 @@ public class CommonProxy {
     public void init(FMLInitializationEvent event) {
         FMLInterModComms.sendMessage("Waila", "register", "cn.gtnh.ae2wtx.compat.WailaProvider.callback");
         cn.gtnh.ae2wtx.compat.WrenchHandler.register();
+        cn.gtnh.ae2wtx.compat.ChannelCardBindHandler.register();
         registerChannelCardUpgradeSupport();
     }
 

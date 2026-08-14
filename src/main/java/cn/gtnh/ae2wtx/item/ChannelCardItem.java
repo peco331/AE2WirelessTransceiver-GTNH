@@ -98,6 +98,19 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
         return stack;
     }
 
+    /** Bind the current player's UUID to the card, or clear an existing binding. */
+    public static void bindOrUnbind(ItemStack stack, EntityPlayer player) {
+        UUID current = getOwnerUUID(stack);
+        if (current != null) {
+            clearOwner(stack);
+            player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.owner.cleared"));
+        } else {
+            setOwnerUUID(stack, player.getUniqueID());
+            player.addChatMessage(new ChatComponentTranslation(
+                "item.extendedae_plus.channel_card.owner.bound", player.getCommandSenderName()));
+        }
+    }
+
     @Override
     public boolean onBlockStartBreak(ItemStack stack, int x, int y, int z, EntityPlayer player) {
         if (!player.isSneaking()) {
@@ -111,15 +124,45 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
         if (world.getBlock(x, y, z) instanceof cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlock) {
             return false;
         }
-        // bind/unbind owner
-        UUID current = getOwnerUUID(stack);
-        if (current != null) {
-            clearOwner(stack);
-            player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.owner.cleared"));
-        } else {
-            setOwnerUUID(stack, player.getUniqueID());
-            player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.owner.bound", player.getCommandSenderName()));
+        bindOrUnbind(stack, player);
+        return true;
+    }
+
+    /**
+     * Sneak + right click (block): bind/unbind the card owner; sneak + right
+     * click on a transceiver writes the card's owner into it. The client must
+     * NOT return true here, otherwise the right-click packet is swallowed and
+     * the server never sees the interaction.
+     */
+    @Override
+    public boolean onItemUseFirst(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int side,
+        float hitX, float hitY, float hitZ) {
+        if (!player.isSneaking()) {
+            return false;
         }
+        if (world.isRemote) {
+            return false; // let the packet through to the server
+        }
+        if (world.getBlock(x, y, z) instanceof cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlock) {
+            net.minecraft.tileentity.TileEntity te = world.getTileEntity(x, y, z);
+            if (te instanceof cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity) {
+                cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity wte =
+                    (cn.gtnh.ae2wtx.content.wireless.WirelessTransceiverBlockEntity) te;
+                UUID cardOwner = getOwnerUUID(stack);
+                if (cardOwner != null) {
+                    wte.setPlacerId(cardOwner, player.getCommandSenderName());
+                    player.addChatMessage(new ChatComponentTranslation(
+                        "extendedae_plus.chat.wireless_transceiver.bound_to",
+                        cardOwner.toString().substring(0, 8)));
+                } else {
+                    wte.setPlacerId(player.getUniqueID(), player.getCommandSenderName());
+                    player.addChatMessage(new ChatComponentTranslation(
+                        "extendedae_plus.chat.wireless_transceiver.card_unbound"));
+                }
+            }
+            return true;
+        }
+        bindOrUnbind(stack, player);
         return true;
     }
 
