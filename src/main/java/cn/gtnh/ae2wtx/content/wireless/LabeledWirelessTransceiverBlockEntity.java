@@ -312,6 +312,30 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return frequency;
     }
 
+    /** Channel usage for Waila/GUI display. */
+    public int getUsedChannelsForDisplay() {
+        if (node == null) {
+            return 0;
+        }
+        int used = 0;
+        for (appeng.api.networking.IGridConnection c : node.getConnections()) {
+            used = Math.max(c.getUsedChannels(), used);
+        }
+        return used;
+    }
+
+    public int getMaxChannelsForDisplay() {
+        return 32;
+    }
+
+    /** Whether the label network link is up (Waila online/offline). */
+    public boolean isOnline() {
+        if (worldObj != null && worldObj.isRemote) {
+            return onlineSync;
+        }
+        return labelLink != null && labelLink.isConnected();
+    }
+
     public String getLabelForDisplay() {
         return labelForDisplay;
     }
@@ -378,9 +402,16 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     /* ===================== visual state (metadata 0/1 online) ===================== */
 
+    private boolean onlineSync = false;
+
     private void updateVisualState() {
         if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
             return;
+        }
+        boolean linkUp = labelLink != null && labelLink.isConnected();
+        if (linkUp != onlineSync) {
+            onlineSync = linkUp;
+            syncToClients();
         }
         IGridNode n = node;
         boolean online = false;
@@ -404,6 +435,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
         tag.setLong("frequency", frequency);
+        tag.setBoolean("online", onlineSync);
         if (labelForDisplay != null) {
             tag.setString("label", labelForDisplay);
         }
@@ -449,6 +481,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         NBTTagCompound tag = pkt.func_148857_g();
         // read client-visible state only (no server-side registry side effects)
         this.frequency = tag.getLong("frequency");
+        this.onlineSync = tag.getBoolean("online");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
         this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;

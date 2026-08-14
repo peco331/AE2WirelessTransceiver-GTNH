@@ -61,9 +61,8 @@ public class WailaProvider implements IWailaDataProvider {
         } else if (te instanceof LabeledWirelessTransceiverBlockEntity) {
             LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
             String label = lte.getLabelForDisplay();
-            currenttip.add(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.current_label") + ": "
-                + (label == null ? "-" : label));
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", lte.getFrequency()));
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.label",
+                label == null || label.isEmpty() ? "-" : label));
             java.util.UUID owner = lte.getPlacerId();
             if (owner == null) {
                 currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.owner.public"));
@@ -72,6 +71,10 @@ public class WailaProvider implements IWailaDataProvider {
                 currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
                     name != null ? name : owner.toString().substring(0, 8)));
             }
+            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
+                lte.getUsedChannelsForDisplay(), lte.getMaxChannelsForDisplay()));
+            currenttip.add(StatCollector.translateToLocal(
+                lte.isOnline() ? "extendedae_plus.jade.online" : "extendedae_plus.jade.offline"));
         }
         return currenttip;
     }

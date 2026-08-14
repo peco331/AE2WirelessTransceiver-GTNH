@@ -75,6 +75,14 @@ public class LabelLink {
                 current.destroy();
                 connection = null;
             }
+            // rv3 securityCheck: the virtual node has no grid of its own, so the
+            // permission fallback rejects it. Matching the host's security key
+            // makes both keys equal and the connection allowed (existing
+            // connections are unaffected by later key changes).
+            if (hostNode instanceof appeng.me.GridNode && targetNode instanceof appeng.me.GridNode) {
+                ((appeng.me.GridNode) targetNode)
+                    .setLastSecurityKey(((appeng.me.GridNode) hostNode).getLastSecurityKey());
+            }
             connection = AEApi.instance().createGridConnection(hostNode, targetNode);
         } catch (Exception ignored) {
             destroyConnection();
