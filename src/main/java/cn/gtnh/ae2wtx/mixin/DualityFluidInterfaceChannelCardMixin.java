@@ -42,6 +42,11 @@ public abstract class DualityFluidInterfaceChannelCardMixin {
             return;
         }
         IInventory upgrades = self.getInventoryByName("upgrades");
+        // TEMP DIAG: throttled tick confirmation with upgrade slot size
+        if (ae2wtx$tickCounter % 400 == 0) {
+            AE2Wtx.LOG.info("CardLinkMixin tick: DualityFluidInterface upgrades="
+                + (upgrades == null ? "null" : String.valueOf(upgrades.getSizeInventory())));
+        }
         IGridHost host = tile instanceof IGridHost ? (IGridHost) tile : null;
         if (host == null) {
             return;

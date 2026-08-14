@@ -189,7 +189,13 @@ public class ChannelCardItem extends Item implements IUpgradeModule {
             }
             return true;
         }
-        bindOrUnbind(stack, player);
+        // sneak + right click on any other block: decrease the channel
+        long ch = getChannel(stack);
+        long next = Math.max(0L, ch - 1L);
+        if (next != ch) {
+            setChannel(stack, next);
+            player.addChatMessage(new ChatComponentTranslation("item.extendedae_plus.channel_card.set", next));
+        }
         return true;
     }
 
