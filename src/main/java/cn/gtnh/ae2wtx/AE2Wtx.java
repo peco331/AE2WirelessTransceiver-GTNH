@@ -3,6 +3,10 @@ package cn.gtnh.ae2wtx;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.item.Item;
+
+import cn.gtnh.ae2wtx.init.ModBlocks;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -20,6 +24,14 @@ public class AE2Wtx {
     public static final String MODID = "ae2wtx";
     public static final String NAME = "AE2 Wireless Transceiver (GTNH)";
     public static final Logger LOG = LogManager.getLogger(MODID);
+
+    public static final CreativeTabs CREATIVE_TAB = new CreativeTabs(MODID) {
+
+        @Override
+        public Item getTabIconItem() {
+            return Item.getItemFromBlock(ModBlocks.blockWirelessTransceiver);
+        }
+    };
 
     @SidedProxy(clientSide = "cn.gtnh.ae2wtx.ClientProxy", serverSide = "cn.gtnh.ae2wtx.CommonProxy")
     public static CommonProxy proxy;
