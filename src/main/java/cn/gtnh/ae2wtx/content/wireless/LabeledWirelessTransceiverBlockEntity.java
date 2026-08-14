@@ -190,6 +190,16 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 AEApi.instance().createGridConnection(node, other);
                 AE2Wtx.LOG.info("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
+                // The cable did NOT create this connection, so its CableBus
+                // visual state (connected endpoints) never refreshed. Force it
+                // so the cable shows the joined appearance immediately.
+                if (te instanceof appeng.api.parts.IPartHost) {
+                    try {
+                        ((appeng.api.parts.IPartHost) te).partChanged();
+                    } catch (Throwable ignored) {
+                        // visual only - never break the connection path
+                    }
+                }
             } catch (Throwable t) {
                 AE2Wtx.LOG.warn("WTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
