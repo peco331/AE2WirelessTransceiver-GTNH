@@ -189,23 +189,21 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 // both nodes to the neighbor grid's key before connecting -
                 // the same fix the label link uses.
                 alignSecurityKey(node, other);
-                AEApi.instance().createGridConnection(node, other);
+                // CRITICAL: the rv3 API only offers direction-less
+                // createGridConnection (dir=UNKNOWN -> hasDirection()=false ->
+                // GridNode.addConnection skips the ConnectionsChanged
+                // notification -> cable visuals never refresh and
+                // getConnectedSides() stays empty). Construct the connection
+                // WITH the direction exactly like FindConnections does, so both
+                // nodes get onGridNotification(ConnectionsChanged) and the
+                // cable updates its connection appearance automatically.
+                if (node instanceof appeng.me.GridNode && other instanceof appeng.me.GridNode) {
+                    new appeng.me.GridConnection((appeng.me.GridNode) node, (appeng.me.GridNode) other, dir);
+                } else {
+                    AEApi.instance().createGridConnection(node, other);
+                }
                 AE2Wtx.LOG.debug("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
-                // The cable did NOT create this connection. Do NOT call
-                // CableBusContainer.updateConnections() or node.updateState()
-                // on the cable: that re-runs its FindConnections, which tries
-                // to re-create our already-existing link, fails with
-                // ExistingConnectionException and CableBus removes the part
-                // from the world (cable drops as an item!). Only a harmless
-                // markForUpdate so the client re-renders the block.
-                if (te instanceof appeng.tile.networking.TileCableBus) {
-                    try {
-                        ((appeng.tile.networking.TileCableBus) te).getCableBus().markForUpdate();
-                    } catch (Throwable ignored) {
-                        // visual only - never break the connection path
-                    }
-                }
             } catch (Throwable t) {
                 AE2Wtx.LOG.warn("WTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
