@@ -42,5 +42,5 @@ extendedae_plus.jade.channels_of=频道: %s/%s
 extendedae_plus.jade.owner=所有者: %s
 extendedae_plus.jade.owner.public=公共
 extendedae_plus.jade.label=标签: %s
-extendedae_plus.jade.online=在线
-extendedae_plus.jade.offline=离线
+extendedae_plus.jade.online=设备在线
+extendedae_plus.jade.offline=设备离线

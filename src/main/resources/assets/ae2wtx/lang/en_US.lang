@@ -42,5 +42,5 @@ extendedae_plus.jade.channels_of=Channels: %s/%s
 extendedae_plus.jade.owner=Owner: %s
 extendedae_plus.jade.owner.public=Public
 extendedae_plus.jade.label=Label: %s
-extendedae_plus.jade.online=Online
-extendedae_plus.jade.offline=Offline
+extendedae_plus.jade.online=Device Online
+extendedae_plus.jade.offline=Device Offline

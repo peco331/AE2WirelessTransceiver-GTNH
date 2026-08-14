@@ -314,6 +314,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     /** Channel usage for Waila/GUI display. */
     public int getUsedChannelsForDisplay() {
+        if (worldObj != null && worldObj.isRemote) {
+            return channelsSync;
+        }
         if (node == null) {
             return 0;
         }
@@ -403,14 +406,22 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     /* ===================== visual state (metadata 0/1 online) ===================== */
 
     private boolean onlineSync = false;
+    private int channelsSync = 0;
 
     private void updateVisualState() {
         if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
             return;
         }
         boolean linkUp = labelLink != null && labelLink.isConnected();
-        if (linkUp != onlineSync) {
+        int used = 0;
+        if (node != null) {
+            for (appeng.api.networking.IGridConnection c : node.getConnections()) {
+                used = Math.max(c.getUsedChannels(), used);
+            }
+        }
+        if (linkUp != onlineSync || used != channelsSync) {
             onlineSync = linkUp;
+            channelsSync = used;
             syncToClients();
         }
         IGridNode n = node;
@@ -436,6 +447,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         super.writeToNBT(tag);
         tag.setLong("frequency", frequency);
         tag.setBoolean("online", onlineSync);
+        tag.setInteger("chSync", channelsSync);
         if (labelForDisplay != null) {
             tag.setString("label", labelForDisplay);
         }
@@ -482,6 +494,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         // read client-visible state only (no server-side registry side effects)
         this.frequency = tag.getLong("frequency");
         this.onlineSync = tag.getBoolean("online");
+        this.channelsSync = tag.getInteger("chSync");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
         this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;
