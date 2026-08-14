@@ -65,6 +65,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 node = AEApi.instance().createGridNode(this);
             }
             refreshLabel(true);
+            // immediate first neighbor scan so a freshly placed transceiver
+            // connects to adjacent cable without waiting for the 5-tick loop
+            maintainLocalConnections();
         }
         if (node != null) {
             // rv3 Grid.update() never calls GridNode.updateState(); periodic
@@ -179,6 +182,11 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 continue;
             }
             try {
+                // rv3 securityCheck rejects key mismatches (fresh node key = -1
+                // vs loaded AE2 nodes key = 0 / security-station keys). Align
+                // both nodes to the neighbor grid's key before connecting -
+                // the same fix the label link uses.
+                alignSecurityKey(node, other);
                 AEApi.instance().createGridConnection(node, other);
                 AE2Wtx.LOG.info("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
@@ -187,6 +195,34 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
             }
         }
+    }
+
+    /** Set both nodes to the same security key (grid key if one side has a grid). */
+    private static void alignSecurityKey(IGridNode a, IGridNode b) {
+        if (!(a instanceof appeng.me.GridNode) || !(b instanceof appeng.me.GridNode)) {
+            return;
+        }
+        long key = Long.MIN_VALUE;
+        IGrid g = a.getGrid() != null ? a.getGrid() : b.getGrid();
+        if (g != null) {
+            try {
+                appeng.me.cache.SecurityCache sc = (appeng.me.cache.SecurityCache) g
+                    .getCache(appeng.api.networking.security.ISecurityGrid.class);
+                if (sc != null) {
+                    key = sc.getSecurityKey();
+                }
+            } catch (Throwable t) {
+                // keep default
+            }
+        }
+        if (key == Long.MIN_VALUE) {
+            key = ((appeng.me.GridNode) a).getLastSecurityKey();
+            if (key == -1) {
+                key = ((appeng.me.GridNode) b).getLastSecurityKey();
+            }
+        }
+        ((appeng.me.GridNode) a).setLastSecurityKey(key);
+        ((appeng.me.GridNode) b).setLastSecurityKey(key);
     }
 
     @Override

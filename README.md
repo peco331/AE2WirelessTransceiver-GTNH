@@ -59,7 +59,7 @@ VERSION=1.0.1 gradlew reobfJar
 
 ## 作者 Author
 
-- [peco331](https://github.com/peco331) — 项目发起、设计与维护（Author & maintainer）
+- [peco331](https://github.com/peco331)
 
 ## 致谢 Credits
 
