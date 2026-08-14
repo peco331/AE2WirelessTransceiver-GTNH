@@ -1,5 +1,7 @@
 itemGroup.ae2wtx=AE2 無線收發器
 tile.ae2wtx.labeled_wireless_transceiver.name=無線收發器
+ae2wtx.config.title=AE2 無線收發器配置
+config.wireless=無線
 
 # ---- ExtendedAE_Plus key parity (zh_tw) ----
 block.extendedae_plus.labeled_wireless_transceiver=無線收發器

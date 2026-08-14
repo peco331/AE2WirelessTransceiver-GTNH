@@ -18,7 +18,8 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
     version = Tags.VERSION,
     name = AE2Wtx.NAME,
     acceptedMinecraftVersions = "[1.7.10]",
-    dependencies = "required-after:appliedenergistics2;required-after:gregtech")
+    dependencies = "required-after:appliedenergistics2;required-after:gregtech",
+    guiFactory = "cn.gtnh.ae2wtx.client.gui.ModGuiFactory")
 public class AE2Wtx {
 
     public static final String MODID = "ae2wtx";

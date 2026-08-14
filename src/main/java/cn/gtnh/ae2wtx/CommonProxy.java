@@ -26,6 +26,8 @@ public class CommonProxy {
     public void init(FMLInitializationEvent event) {
         FMLInterModComms.sendMessage("Waila", "register", "cn.gtnh.ae2wtx.compat.WailaProvider.callback");
         cn.gtnh.ae2wtx.compat.WrenchHandler.register();
+        // reload config values after in-game config screen edits
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(cn.gtnh.ae2wtx.config.ModConfig.class);
     }
 
     public void postInit(FMLPostInitializationEvent event) {

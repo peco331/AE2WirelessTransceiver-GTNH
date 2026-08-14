@@ -358,7 +358,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     /**
      * Channel usage for Waila/GUI display (server side reads the throttled
-     * cache; the cache = AE allocated channels + missing-channel devices).
+     * cache; the cache = number of channel consumers in the local network).
      */
     public int getUsedChannelsForDisplay() {
         if (worldObj != null && worldObj.isRemote) {
@@ -368,36 +368,20 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     /**
-     * Original allocation-based count: max channels carried by this node's
-     * connections (AE saturates this at the node capacity, e.g. 32).
+     * Device count: every block/part whose grid node carries REQUIRE_CHANNEL
+     * counts as ONE channel consumer - regardless of how many internal grid
+     * nodes it has (a Dual ME Interface with item+fluid nodes counts once).
+     * Block-level BFS; machines expand too, so chains of adjacent machines
+     * (several Dual ME Interfaces in a row) all count. Devices that could not
+     * get a channel still carry REQUIRE_CHANNEL, so over capacity naturally
+     * shows as 32+x/32. Transceivers and ME controllers are skipped.
      */
-    private int allocatedChannels() {
-        if (node == null) {
-            return 0;
-        }
-        int used = 0;
-        for (IGridConnection c : node.getConnections()) {
-            used = Math.max(c.getUsedChannels(), used);
-        }
-        return used;
-    }
-
-    /**
-     * How many channel consumers in the local network could NOT get a channel
-     * ("device missing channel") - this is the "over capacity" part (x in
-     * 32+x/32). Block-level BFS; machines are EXPANDED too, so chains of
-     * adjacent machines (e.g. several Dual ME Interfaces in a row) all count.
-     * Only counted while the local grid is powered.
-     */
-    private int countMissingChannels() {
-        if (!isLocalGridPowered()) {
-            return 0;
-        }
+    private int countDeviceConsumers() {
         java.util.Set<Long> visited = new java.util.HashSet<>();
         java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
         visited.add(encodePos(xCoord, yCoord, zCoord));
         queue.add(new int[] { xCoord, yCoord, zCoord });
-        int missing = 0;
+        int devices = 0;
         while (!queue.isEmpty()) {
             int[] cur = queue.poll();
             for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
@@ -424,14 +408,14 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                         if (part == null || part instanceof appeng.parts.networking.PartCable) {
                             continue;
                         }
-                        if (isMissingChannel(part.getGridNode(), node)) {
-                            missing++;
+                        if (isChannelConsumer(part.getGridNode())) {
+                            devices++;
                         }
                     }
                     queue.add(new int[] { nx, ny, nz }); // keep walking
                 } else if (te instanceof IGridHost) {
-                    if (isMissingChannel(((IGridHost) te).getGridNode(ForgeDirection.UNKNOWN), node)) {
-                        missing++;
+                    if (isChannelConsumer(((IGridHost) te).getGridNode(ForgeDirection.UNKNOWN))) {
+                        devices++;
                     }
                     // machines expand too: adjacent machine chains (Dual ME
                     // Interfaces in a row) must all be visited
@@ -439,46 +423,13 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 }
             }
         }
-        return missing;
+        return devices;
     }
 
-    /** True when the node wants a channel but got none (missing-channel state). */
-    private static boolean isMissingChannel(IGridNode gn, IGridNode selfNode) {
-        if (gn instanceof appeng.me.GridNode) {
-            appeng.me.GridNode g = (appeng.me.GridNode) gn;
-            if (!g.hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL)) {
-                return false;
-            }
-            if (g.getUsedChannels() > 0) {
-                return false;
-            }
-            // only count nodes that belong to OUR grid - a physically adjacent
-            // machine of a DIFFERENT (separate) network must not be counted
-            if (selfNode == null || g.getGrid() == null || g.getGrid() != selfNode.getGrid()) {
-                return false;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /** Powered AND not mid-boot (booting resets channel allocation). */
-    private boolean isLocalGridPowered() {
-        try {
-            IGrid grid = node == null ? null : node.getGrid();
-            if (grid == null) {
-                return false;
-            }
-            boolean powered = ((IEnergyGrid) grid.getCache(IEnergyGrid.class)).isNetworkPowered();
-            if (!powered) {
-                return false;
-            }
-            boolean booting = ((appeng.api.networking.pathing.IPathingGrid) grid
-                .getCache(appeng.api.networking.pathing.IPathingGrid.class)).isNetworkBooting();
-            return !booting;
-        } catch (Throwable t) {
-            return false;
-        }
+    /** True when the node is a channel consumer (machine/bus/interface/...). */
+    private static boolean isChannelConsumer(IGridNode gn) {
+        return gn instanceof appeng.me.GridNode
+            && ((appeng.me.GridNode) gn).hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
     }
 
     private static long encodePos(int x, int y, int z) {
@@ -631,7 +582,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             return;
         }
         usedCalcTick = 0;
-        serverUsedCache = allocatedChannels() + countMissingChannels();
+        serverUsedCache = node == null ? 0 : countDeviceConsumers();
         int max = 32;
         if (node instanceof appeng.me.GridNode) {
             max = ((appeng.me.GridNode) node).getMaxChannels();

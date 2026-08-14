@@ -1,5 +1,7 @@
 itemGroup.ae2wtx=AE2 Wireless Transceiver
 tile.ae2wtx.labeled_wireless_transceiver.name=Wireless Transceiver
+ae2wtx.config.title=AE2 Wireless Transceiver Config
+config.wireless=Wireless
 
 # ---- ExtendedAE_Plus key parity (en_us) ----
 block.extendedae_plus.labeled_wireless_transceiver=Wireless Transceiver
