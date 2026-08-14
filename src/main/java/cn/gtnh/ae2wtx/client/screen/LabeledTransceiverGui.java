@@ -231,10 +231,16 @@ public class LabeledTransceiverGui extends GuiContainer {
             int row = localY / ROW_H;
             int idx = scrollOffset + row;
             if (idx >= 0 && idx < filtered.size()) {
-                // click toggles multi-selection; last clicked row feeds Set/DC
-                if (selectedIndices.contains(idx)) {
-                    selectedIndices.remove(idx);
+                // Windows-style: plain click = single select,
+                // ctrl+click = toggle multi-selection
+                if (isCtrlKeyDown()) {
+                    if (selectedIndices.contains(idx)) {
+                        selectedIndices.remove(idx);
+                    } else {
+                        selectedIndices.add(idx);
+                    }
                 } else {
+                    selectedIndices.clear();
                     selectedIndices.add(idx);
                 }
                 selectedIndex = idx;
