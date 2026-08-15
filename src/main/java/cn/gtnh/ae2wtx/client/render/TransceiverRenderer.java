@@ -44,29 +44,40 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
         // east:  u:z  v:y
         { 1, 1, 0, 0, 0, 0, 1, 0 }, { 1, 1, 1, 1, 0, 0, 1, 1 }, { 1, 0, 1, 1, 0, 1, 0, 1 }, { 1, 0, 0, 0, 0, 1, 0, 0 },
     };
-    // uv corner offsets for each direction: (cu, cv) per corner, where
-    // u = u1 + cu*(u2-u1), v = v1 + cv*(v2-v1)
+    // uv corner offsets for each direction x 4 corners (cu, cv) per corner,
+    // where u = u1 + cu*(u2-u1), v = v1 + cv*(v2-v1)
     private static final float[][] UVMAP = {
-        { 0, 0, 0, 1, 1, 1, 1, 0 }, // down
-        { 0, 0, 0, 1, 1, 1, 1, 0 }, // up
-        { 0, 0, 1, 0, 1, 1, 0, 1 }, // north
-        { 0, 0, 1, 0, 1, 1, 0, 1 }, // south
-        { 0, 0, 1, 0, 1, 1, 0, 1 }, // west
-        { 0, 0, 1, 0, 1, 1, 0, 1 }, // east
+        // down:  u along x, v along z
+        { 0, 0 }, { 0, 1 }, { 1, 1 }, { 1, 0 },
+        // up:  u along x, v along z (reversed)
+        { 0, 0 }, { 0, 1 }, { 1, 1 }, { 1, 0 },
+        // north:  u along x, v along y (v1 top)
+        { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 },
+        // south:  u along -x, v along y
+        { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 },
+        // west:  u along -z, v along y
+        { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 },
+        // east:  u along z, v along y
+        { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 },
     };
 
     @Override
     public boolean renderWorldBlock(IBlockAccess world, int x, int y, int z, Block block, int modelId,
         RenderBlocks renderer) {
         int meta = world.getBlockMetadata(x, y, z);
-        LightModel model = (meta == 1 ? MODEL_ON : MODEL_OFF);
-        if (model == null) {
-            return false;
-        }
         IIcon icon = meta == 1
             ? cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock.iconOn
             : cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock.iconOff;
         if (icon == null) {
+            return false;
+        }
+        // vanilla 16px textures = the original EAEP look: render as a plain
+        // cube. The 3D model only kicks in with the Light Mode pack (128px).
+        if (icon.getIconWidth() <= 16) {
+            return renderer.renderStandardBlock(block, x, y, z);
+        }
+        LightModel model = (meta == 1 ? MODEL_ON : MODEL_OFF);
+        if (model == null) {
             return false;
         }
         Tessellator tess = Tessellator.instance;
@@ -162,6 +173,16 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
 
     @Override
     public void renderInventoryBlock(Block block, int metadata, int modelId, RenderBlocks renderer) {
+        IIcon icon = metadata == 1 ? cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock.iconOn
+            : cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock.iconOff;
+        if (icon == null) {
+            return;
+        }
+        // vanilla 16px texture: plain cube icon
+        if (icon.getIconWidth() <= 16) {
+            renderCubeInventory(icon);
+            return;
+        }
         // rotate a bit for a nice 3D inventory icon
         GL11.glPushMatrix();
         GL11.glTranslatef(-0.5F, -0.5F, -0.5F);
@@ -172,16 +193,53 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
         tess.startDrawingQuads();
         LightModel model = (metadata == 1 ? MODEL_ON : MODEL_OFF);
         if (model != null) {
-            IIcon icon = metadata == 1 ? cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock.iconOn
-                : cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock.iconOff;
-            if (icon != null) {
-                for (LightModel.Element el : model.elements) {
-                    renderElement(tess, el, icon);
-                }
+            for (LightModel.Element el : model.elements) {
+                renderElement(tess, el, icon);
             }
         }
         tess.draw();
         GL11.glPopMatrix();
+    }
+
+    /** Simple 6-face cube for the vanilla (16px) inventory icon. */
+    private static void renderCubeInventory(IIcon icon) {
+        Tessellator tess = Tessellator.instance;
+        tess.startDrawingQuads();
+        float minU = icon.getMinU();
+        float maxU = icon.getMaxU();
+        float minV = icon.getMinV();
+        float maxV = icon.getMaxV();
+        // -y
+        tess.addVertexWithUV(0, 0, 0, minU, minV);
+        tess.addVertexWithUV(1, 0, 0, maxU, minV);
+        tess.addVertexWithUV(1, 0, 1, maxU, maxV);
+        tess.addVertexWithUV(0, 0, 1, minU, maxV);
+        // +y
+        tess.addVertexWithUV(0, 1, 0, minU, minV);
+        tess.addVertexWithUV(0, 1, 1, maxU, minV);
+        tess.addVertexWithUV(1, 1, 1, maxU, maxV);
+        tess.addVertexWithUV(1, 1, 0, minU, maxV);
+        // -z
+        tess.addVertexWithUV(0, 0, 0, minU, maxV);
+        tess.addVertexWithUV(1, 0, 0, maxU, maxV);
+        tess.addVertexWithUV(1, 1, 0, maxU, minV);
+        tess.addVertexWithUV(0, 1, 0, minU, minV);
+        // +z
+        tess.addVertexWithUV(0, 0, 1, minU, minV);
+        tess.addVertexWithUV(1, 0, 1, maxU, minV);
+        tess.addVertexWithUV(1, 1, 1, maxU, maxV);
+        tess.addVertexWithUV(0, 1, 1, minU, maxV);
+        // -x
+        tess.addVertexWithUV(0, 0, 0, minU, minV);
+        tess.addVertexWithUV(0, 0, 1, maxU, minV);
+        tess.addVertexWithUV(0, 1, 1, maxU, maxV);
+        tess.addVertexWithUV(0, 1, 0, minU, maxV);
+        // +x
+        tess.addVertexWithUV(1, 0, 0, minU, minV);
+        tess.addVertexWithUV(1, 1, 0, minU, maxV);
+        tess.addVertexWithUV(1, 1, 1, maxU, maxV);
+        tess.addVertexWithUV(1, 0, 1, maxU, minV);
+        tess.draw();
     }
 
     @Override

@@ -59,16 +59,16 @@ VERSION=1.0.1 gradlew reobfJar
 
 ## 材质包 Resource Pack
 
-两套 **128x 亮色（Light Mode）外观**，游戏内资源包可随时切换（勿同时启用两套）：
+与 EAEP 原版相同的逻辑：**默认 = 原版简单外观**（16x 贴图 + 标准六面渲染）；**启用材质包后 = 3D 模型 + 128x 亮色纹理 + 在线呼吸动画**（渲染器自动检测贴图尺寸切换）。
 
 | 包 | 外观 | 说明 |
 |---|---|---|
-| `ae2wtx-light-mode-labeled.zip` | 标签无线收发器风格 | 亮色高清（推荐） |
-| `ae2wtx-light-mode-classic.zip` | 经典无线收发器风格 | 同包的另一套配色 |
+| `ae2wtx-light-mode-labeled.zip` | 标签无线收发器亮色风格 | 3D 模型 + 128x + 呼吸动画（推荐） |
+| `ae2wtx-light-mode-classic.zip` | 经典无线收发器亮色风格 | 同包另一配色 |
 
-- **在线状态带呼吸动画**：on 贴图为动画纹理（labeled 13 帧 / classic 27 帧，帧节奏沿用原版 lighting 层），模拟 1.20.1 的发光呼吸效果（1.7.10 无 emissive 渲染，用亮度烘焙近似）
-- **无法复刻的部分**：1.20.1 的 `light_emission`（方块自发光，1.7.10 需 mod 代码支持）与 channel 0-5 状态覆盖层（本 mod 方块无 6 态 meta）
-- 适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**，作者 **C-H716, _leng, fish_旦**，其版权归原作者所有
+- 放入游戏 `resourcepacks/` 目录后在游戏内启用
+- **无法复刻的部分**：channel 0-5 状态覆盖层（本 mod 方块无 6 态 meta，频道信息由 Waila/GUI 呈现）
+- 纹理适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**，作者 **C-H716, _leng, fish_旦**，其版权归原作者所有
 
 ## 作者 Author
 
