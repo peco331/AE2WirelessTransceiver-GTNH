@@ -26,6 +26,9 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
 
     private static final String[] DIRS = { "down", "up", "north", "south", "west", "east" };
 
+    /** Per-face brightness like vanilla RenderBlocks (gives the 3D depth). */
+    private static final float[] SHADE = { 0.5F, 1.0F, 0.8F, 0.8F, 0.6F, 0.6F };
+
     // 1.20.1 direction tables: 4 corners (x,y,z in 0/1) with matching uv corner
     // (u along the face's horizontal axis, v along its vertical axis).
     // corner order is irrelevant (1.7.10 disables backface culling); only the
@@ -80,22 +83,32 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
         if (model == null) {
             return false;
         }
+        // Angelica and other render optimizers may enable backface culling;
+        // our vertex winding is not guaranteed CCW, so disable culling for
+        // the model quads and restore the previous state afterwards.
+        boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        if (cull) {
+            GL11.glDisable(GL11.GL_CULL_FACE);
+        }
         Tessellator tess = Tessellator.instance;
         tess.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z));
         int color = block.colorMultiplier(world, x, y, z);
         float cr = (color >> 16 & 255) / 255.0F;
         float cg = (color >> 8 & 255) / 255.0F;
         float cb = (color & 255) / 255.0F;
-        tess.setColorOpaque_F(cr, cg, cb);
         tess.addTranslation(x, y, z);
         for (LightModel.Element el : model.elements) {
-            renderElement(tess, el, icon);
+            renderElement(tess, el, icon, cr, cg, cb);
         }
         tess.addTranslation(-x, -y, -z);
+        if (cull) {
+            GL11.glEnable(GL11.GL_CULL_FACE);
+        }
         return true;
     }
 
-    private static void renderElement(Tessellator tess, LightModel.Element el, IIcon icon) {
+    private static void renderElement(Tessellator tess, LightModel.Element el, IIcon icon,
+        float cr, float cg, float cb) {
         float minU = icon.getMinU();
         float maxU = icon.getMaxU();
         float minV = icon.getMinV();
@@ -108,6 +121,9 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
             if (face == null) {
                 continue;
             }
+            // per-face directional shading (vanilla look, gives depth)
+            float shade = SHADE[d];
+            tess.setColorOpaque_F(cr * shade, cg * shade, cb * shade);
             float u1 = minU + (face.uv[0] / 16.0F) * uSpan;
             float v1 = minV + (face.uv[1] / 16.0F) * vSpan;
             float u2 = minU + (face.uv[2] / 16.0F) * uSpan;
@@ -189,15 +205,24 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
         GL11.glRotatef(-30.0F, 0.0F, 1.0F, 0.0F);
         GL11.glRotatef(22.0F, 1.0F, 0.0F, 0.0F);
         GL11.glScalef(0.625F, 0.625F, 0.625F);
+        boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        if (cull) {
+            GL11.glDisable(GL11.GL_CULL_FACE);
+        }
         Tessellator tess = Tessellator.instance;
         tess.startDrawingQuads();
+        // inventory standard full brightness
+        tess.setBrightness(0x00F000F0);
         LightModel model = (metadata == 1 ? MODEL_ON : MODEL_OFF);
         if (model != null) {
             for (LightModel.Element el : model.elements) {
-                renderElement(tess, el, icon);
+                renderElement(tess, el, icon, 1.0F, 1.0F, 1.0F);
             }
         }
         tess.draw();
+        if (cull) {
+            GL11.glEnable(GL11.GL_CULL_FACE);
+        }
         GL11.glPopMatrix();
     }
 
@@ -205,36 +230,43 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
     private static void renderCubeInventory(IIcon icon) {
         Tessellator tess = Tessellator.instance;
         tess.startDrawingQuads();
+        tess.setBrightness(0x00F000F0); // inventory standard full brightness
         float minU = icon.getMinU();
         float maxU = icon.getMaxU();
         float minV = icon.getMinV();
         float maxV = icon.getMaxV();
-        // -y
+        // -y (0.5)
+        tess.setColorOpaque_F(0.5F, 0.5F, 0.5F);
         tess.addVertexWithUV(0, 0, 0, minU, minV);
         tess.addVertexWithUV(1, 0, 0, maxU, minV);
         tess.addVertexWithUV(1, 0, 1, maxU, maxV);
         tess.addVertexWithUV(0, 0, 1, minU, maxV);
-        // +y
+        // +y (1.0)
+        tess.setColorOpaque_F(1.0F, 1.0F, 1.0F);
         tess.addVertexWithUV(0, 1, 0, minU, minV);
         tess.addVertexWithUV(0, 1, 1, maxU, minV);
         tess.addVertexWithUV(1, 1, 1, maxU, maxV);
         tess.addVertexWithUV(1, 1, 0, minU, maxV);
-        // -z
+        // -z (0.8)
+        tess.setColorOpaque_F(0.8F, 0.8F, 0.8F);
         tess.addVertexWithUV(0, 0, 0, minU, maxV);
         tess.addVertexWithUV(1, 0, 0, maxU, maxV);
         tess.addVertexWithUV(1, 1, 0, maxU, minV);
         tess.addVertexWithUV(0, 1, 0, minU, minV);
-        // +z
+        // +z (0.8)
+        tess.setColorOpaque_F(0.8F, 0.8F, 0.8F);
         tess.addVertexWithUV(0, 0, 1, minU, minV);
         tess.addVertexWithUV(1, 0, 1, maxU, minV);
         tess.addVertexWithUV(1, 1, 1, maxU, maxV);
         tess.addVertexWithUV(0, 1, 1, minU, maxV);
-        // -x
+        // -x (0.6)
+        tess.setColorOpaque_F(0.6F, 0.6F, 0.6F);
         tess.addVertexWithUV(0, 0, 0, minU, minV);
         tess.addVertexWithUV(0, 0, 1, maxU, minV);
         tess.addVertexWithUV(0, 1, 1, maxU, maxV);
         tess.addVertexWithUV(0, 1, 0, minU, maxV);
-        // +x
+        // +x (0.6)
+        tess.setColorOpaque_F(0.6F, 0.6F, 0.6F);
         tess.addVertexWithUV(1, 0, 0, minU, minV);
         tess.addVertexWithUV(1, 1, 0, minU, maxV);
         tess.addVertexWithUV(1, 1, 1, maxU, maxV);
