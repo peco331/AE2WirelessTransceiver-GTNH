@@ -1,80 +1,55 @@
 # AE2 Wireless Transceiver (GTNH)
 
-无线收发器 — 将 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 的无线收发器移植到 **GTNH 2.9.0-beta1**（Minecraft 1.7.10 / Forge 10.13.4.1614）。
+将 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 的无线收发器移植到 **GTNH 2.9.0-beta1**（MC 1.7.10）。
 
-A GTNH 1.7.10 port of the wireless transceiver from ExtendedAE_Plus.
+A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 
-## 功能 Features
+## 功能
 
-- **单一无线收发器**：命名频段（Band）无线桥接 ME 频道，跨维度（可配置）
-- **频段管理 GUI**（EAEP 原版布局）：新建 / 删除 / 设定 / 断开频段、频段列表搜索、实时信息面板
-- **频道占用显示**：
-  - 本机频道：本地网络通道消费者数 / ME 实际容量（32，无限模式显示 ∞）
-  - 本频段频道：整个频段所有收发器的占用总和，超载标红、满载标黄（`32+x/32`）
-  - 按方块统计（二合一接口等双节点设备只计 1）
-- **Waila 集成**：频段 / 所有者 / 本机频道 / 本频段频道 / 在线收发器数 / 锁定状态 / 设备在线
-- **扳手交互**：右键锁定（防盗，挖掘减速 90%）、潜行右键拆卸（AE2 式地面掉落）
-- **防串频道**：相邻收发器永不直接互连，只能通过同名频段网络传递
-- **游戏内配置**：Mod 列表 → Config，即时生效；或编辑 `config/ae2wtx.cfg`
+- **无线桥接 ME 频道**：命名频段（Band），支持跨维度
+- **频段管理 GUI**：新建 / 删除 / 设定 / 断开，搜索，实时信息
+- **频道占用显示**：本机频道与全频段占用（超载红色 / 满载黄色），按设备统计
+- **Waila 支持**：频段、所有者、频道、在线收发器数、锁定、设备状态
+- **扳手交互**：右键锁定（防盗）、潜行右键拆卸
+- **防串频道**：相邻收发器不会直接互连
 
-## 操作 Interactions
+## 操作
 
 | 操作 | 效果 |
 |---|---|
 | 右键 | 打开频段管理 GUI |
-| 扳手 + 右键 | 锁定 / 解锁收发器 |
-| 扳手 + 潜行 + 右键 | 拆卸（掉落方块） |
+| 扳手 + 右键 | 锁定 / 解锁 |
+| 扳手 + 潜行 + 右键 | 拆卸 |
 
-## 配置 Config
+## 配置
+
+游戏内：Mod 列表 → Config（即时生效）；或编辑 `config/ae2wtx.cfg`：
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `wireless.wirelessCrossDimEnable` | `true` | 跨维度无线桥接开关 |
-| `wireless.wirelessTransceiverIdlePower` | `10.0` | 收发器节点空闲 AE 功耗 (AE/t) |
+| `wireless.wirelessCrossDimEnable` | `true` | 跨维度无线桥接 |
+| `wireless.wirelessTransceiverIdlePower` | `10.0` | 节点空闲 AE 功耗 (AE/t) |
 
-## 兼容性 Compatibility
+## 材质包
 
-- 测试版本：**GTNH 2.9.0-beta1**（Java 17-25 服务器 + Prism 客户端）
-- 依赖：Applied Energistics 2（GTNH rv3-beta-977）、GT5-Unofficial
+默认外观 = 原版样式；启用材质包后变为 **3D 模型 + 128x 亮色 + 呼吸动画**（与 EAEP 相同的切换逻辑）。
+
+- `ae2wtx-light-mode-labeled.zip` — 亮色风格（推荐）
+- `ae2wtx-light-mode-classic.zip` — 经典配色
+
+放入 `resourcepacks/` 目录，游戏内启用。
+
+## 兼容性
+
+- 测试版本：GTNH 2.9.0-beta1
+- 依赖：AE2（GTNH rv3）、GT5-Unofficial
 - 语言：简体中文 / 繁體中文 / English
 
-## 构建 Build
+## 许可
 
-```bash
-# JDK 25 + Gradle（gtnhconvention）
-VERSION=1.0.1 gradlew reobfJar
-# 产物：build/libs/ae2wtx-1.0.1.jar
-```
+LGPL-3.0。移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn，LGPL-3.0）；Light Mode 纹理版权归 **C-H716, _leng, fish_旦** 所有。详细移植说明见 [docs/TECHNICAL.md](docs/TECHNICAL.md)。
 
-## 移植说明 / 许可 Porting notes & License
-
-本项目是 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn）无线收发器部分的移植与 GTNH 适配，包括：
-
-- 移植的代码：标签网络注册表（`LabelNetworkRegistry`）、连接器（`LabelLink`）、管理 GUI 与布局、Waila/Jade 显示结构、交互设计（锁定 / 拆卸 / 频段操作）、纹理与 GUI 资源
-- GTNH 适配：rv3 网格节点生命周期（`updateState` 手动驱动）、rv3 安全键匹配修复（`setLastSecurityKey` / `setPlayerID`）、防串频道、频道占用统计增强、性能节流
-
-依据上游许可，本项目以 **GNU Lesser General Public License v3.0（LGPL-3.0）** 发布，见 [LICENSE](LICENSE)。上游项目 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 同样以 LGPL-3.0 发布。
-
-**第三方组件声明**：Applied Energistics 2（AE2, MIT License）、GregTech 5 Unofficial、SpongePowered Mixin（MIT License）、ExtendedAE_Plus（LGPL-3.0）。各组件版权归其原作者所有。
-
-## 材质包 Resource Pack
-
-与 EAEP 原版相同的逻辑：**默认 = 原版简单外观**（16x 贴图 + 标准六面渲染）；**启用材质包后 = 3D 模型 + 128x 亮色纹理 + 在线呼吸动画**（渲染器自动检测贴图尺寸切换）。
-
-| 包 | 外观 | 说明 |
-|---|---|---|
-| `ae2wtx-light-mode-labeled.zip` | 标签无线收发器亮色风格 | 3D 模型 + 128x + 呼吸动画（推荐） |
-| `ae2wtx-light-mode-classic.zip` | 经典无线收发器亮色风格 | 同包另一配色 |
-
-- 放入游戏 `resourcepacks/` 目录后在游戏内启用
-- **无法复刻的部分**：channel 0-5 状态覆盖层（本 mod 方块无 6 态 meta，频道信息由 Waila/GUI 呈现）
-- 纹理适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**，作者 **C-H716, _leng, fish_旦**，其版权归原作者所有
-
-## 作者 Author
+## 作者
 
 - [peco331](https://github.com/peco331)
-
-## 致谢 Credits
-
-- [GaLicn](https://github.com/GaLicn/ExtendedAE_Plus) — ExtendedAE_Plus 原作者（LGPL-3.0）
-- DeepSeek AI — AI 编码辅助（AI-assisted development）
+- DeepSeek AI — AI 编码辅助
