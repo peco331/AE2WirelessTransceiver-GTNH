@@ -119,6 +119,22 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
 
     /* ===================== rendering ===================== */
 
+    /** GTNHLib JSON model rendering (blockbench 3D model). */
+    @Override
+    public int getRenderType() {
+        return com.gtnewhorizon.gtnhlib.client.model.ModelISBRH.JSON_ISBRH_ID;
+    }
+
+    @Override
+    public boolean isOpaqueCube() {
+        return false;
+    }
+
+    @Override
+    public boolean renderAsNormalBlock() {
+        return false;
+    }
+
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {

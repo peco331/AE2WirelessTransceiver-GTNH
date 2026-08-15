@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "meta=0": { "model": "ae2wtx:blocks/lable_off" },
+    "meta=1": { "model": "ae2wtx:blocks/lable_on" }
+  }
+}
