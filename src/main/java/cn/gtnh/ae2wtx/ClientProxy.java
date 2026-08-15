@@ -14,6 +14,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        cn.gtnh.ae2wtx.client.ClientRenderHandler.init();
     }
 
     @Override
