@@ -109,12 +109,11 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     /* ===================== self-illumination ===================== */
 
     /**
-     * Online transceivers emit light (10/15, matching the Light Mode pack's
-     * original light_emission 10), offline ones stay dark.
+     * Online transceivers emit full light (15/15), offline ones stay dark.
      */
     @Override
     public int getLightValue(net.minecraft.world.IBlockAccess world, int x, int y, int z) {
-        return world.getBlockMetadata(x, y, z) == 1 ? 10 : 0;
+        return world.getBlockMetadata(x, y, z) == 1 ? 15 : 0;
     }
 
     /* ===================== rendering ===================== */

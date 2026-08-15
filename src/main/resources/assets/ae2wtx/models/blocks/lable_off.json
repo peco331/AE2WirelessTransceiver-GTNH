@@ -8,7 +8,7 @@
 	],
 	"textures": {
 		"0": "ae2wtx:block/wireless_transceiver/liang_zi_huan",
-		"1": "ae2wtx:block/wireless_transceiver/wireless_transceiver",
+		"1": "ae2wtx:block/wireless_transceiver/wireless_transceiver_lighting_off",
 		"2": "ae2wtx:block/wireless_transceiver/wireless_transceiver",
 		"3": "ae2wtx:block/wireless_transceiver/wireless_transceiver_channel0",
 		"particle": "ae2wtx:block/wireless_transceiver/wireless_transceiver"

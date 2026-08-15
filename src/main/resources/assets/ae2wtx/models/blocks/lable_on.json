@@ -10,7 +10,7 @@
 		"0": "ae2wtx:block/wireless_transceiver/liang_zi_huan",
 		"2": "ae2wtx:block/wireless_transceiver/wireless_transceiver",
 		"8": "ae2wtx:block/wireless_transceiver/wireless_transceiver_channel5",
-		"particle": "ae2wtx:block/wireless_transceiver/wireless_transceiver"
+		"1": "ae2wtx:block/wireless_transceiver/wireless_transceiver_lighting", "particle": "ae2wtx:block/wireless_transceiver/wireless_transceiver"
 	},
 	"elements": [
 		{
@@ -1912,7 +1912,75 @@
 				}
 			}
 		}
-	],
+	,{
+			"name": "on",
+			"from": [
+				3.9999,
+				3.9999,
+				3.9999
+			],
+			"to": [
+				12.0001,
+				12.0001,
+				12.0001
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						0,
+						8,
+						8
+					],
+					"texture": "#1"
+				},
+				"east": {
+					"uv": [
+						0,
+						0,
+						8,
+						8
+					],
+					"texture": "#1"
+				},
+				"south": {
+					"uv": [
+						0,
+						0,
+						8,
+						8
+					],
+					"texture": "#1"
+				},
+				"west": {
+					"uv": [
+						0,
+						0,
+						8,
+						8
+					],
+					"texture": "#1"
+				},
+				"up": {
+					"uv": [
+						8,
+						8,
+						0,
+						0
+					],
+					"texture": "#1"
+				},
+				"down": {
+					"uv": [
+						8,
+						0,
+						0,
+						8
+					],
+					"texture": "#1"
+				}
+			}
+		}],
 	"display": {
 		"thirdperson_righthand": {
 			"rotation": [
