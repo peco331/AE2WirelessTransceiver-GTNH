@@ -28,10 +28,10 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     public static final int GUI_ID = 1;
 
     @SideOnly(Side.CLIENT)
-    public static IIcon iconOff;
+    private IIcon iconOff;
 
     @SideOnly(Side.CLIENT)
-    public static IIcon iconOn;
+    private IIcon iconOn;
 
     public LabeledWirelessTransceiverBlock() {
         super(Material.iron);
@@ -118,22 +118,6 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     }
 
     /* ===================== rendering ===================== */
-
-    /** Custom 3D renderer (Light Mode blockbench model). */
-    @Override
-    public int getRenderType() {
-        return cn.gtnh.ae2wtx.client.ClientRenderHandler.renderId;
-    }
-
-    @Override
-    public boolean isOpaqueCube() {
-        return false;
-    }
-
-    @Override
-    public boolean renderAsNormalBlock() {
-        return false;
-    }
 
     @Override
     @SideOnly(Side.CLIENT)

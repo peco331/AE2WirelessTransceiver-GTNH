@@ -79,23 +79,20 @@ cn.gtnh.ae2wtx
 └── wireless/                               # LabelNetworkRegistry / LabelLink / IWirelessEndpoint
 ```
 
-## 5. 渲染器（Light Mode 3D）
+## 5. 渲染与外观
 
-- `LightModel`：Gson 解析 1.20.1 模型 JSON（from/to、rotation、faces+16 单位 UV）
-- `TransceiverRenderer`：`ISimpleBlockRenderingHandler`，**按贴图尺寸自动切换**：
-  - 16x（默认）→ `renderStandardBlock`（原版外观，零开销）
-  - 128x（材质包）→ 31 元素 3D 渲染（含 5 个旋转元素、顶部凸起 y>16），on 态动画纹理由 atlas 自动播放
-- 性能：静态方块走显示列表缓存（渲染代码仅在方块变化时执行）；动画每 3 tick 触发一次重渲染，量级可忽略
-- 物品栏：16x → 简单立方体；128x → 3D 模型（带旋转视角）
+- 标准 1.7.10 六面渲染（`getRenderType` 默认），16x 原版 EAEP 贴图（off/on 两态）
 - 自发光：`getLightValue(IBlockAccess,...)` 在线 10/15，离线 0；状态翻转时 `updateLightByType` 重算
+- **已放弃**：Light Mode 3D 模型移植（1.20.1 blockbench 模型无法在 1.7.10 可靠复刻——旋转元素/UV 语义/背面剔除/Angelica 兼容等导致缺面与透明，物品栏与掉落物渲染异常）。曾尝试 `ISimpleBlockRenderingHandler` 方案（31 元素、按贴图尺寸切换、方向光照、剔除禁用），因效果不可控而回滚
 
-## 6. 材质包
+## 6. 已知限制
 
-- `resourcepacks/ae2wtx-light-mode-labeled.zip` / `classic.zip`：覆盖 `textures/blocks/wireless_transceiver/*` 为 128x 亮色（on 为动画帧条 + mcmeta）
-- 与 EAEP 原版逻辑一致（原版材质包覆盖 blockstates/models；1.7.10 无模型系统，由渲染器按贴图尺寸等价切换）
-- Light Mode 纹理适配自 ExtendedAE_Plus Light Mode Texture Pack (1.21)，作者 C-H716, _leng, fish_旦
+- **channel 0-5 状态覆盖层**未复刻（plain 版 6 态 meta 专属；本 mod 方块仅 off/on 两态，频道信息由 Waila/GUI 呈现）
+- **Light Mode 材质包**已移除（3D 模型移植失败后不再提供）
+- **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
+- 设备计数为方块级近似（非 AE 通道分配语义）；饱和时显示需求而非分配值
 
-## 7. 已知限制
+## 7. 交互决策记录
 
 - **channel 0-5 状态覆盖层**未复刻（plain 版 6 态 meta 专属；本 mod 方块仅 off/on 两态，频道信息由 Waila/GUI 呈现）
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致

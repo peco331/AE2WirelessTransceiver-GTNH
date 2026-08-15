@@ -30,15 +30,6 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 | `wireless.wirelessCrossDimEnable` | `true` | 跨维度无线桥接 |
 | `wireless.wirelessTransceiverIdlePower` | `10.0` | 节点空闲 AE 功耗 (AE/t) |
 
-## 材质包
-
-默认外观 = 原版样式；启用材质包后变为 **3D 模型 + 128x 亮色 + 呼吸动画**（与 EAEP 相同的切换逻辑）。
-
-- `ae2wtx-light-mode-labeled.zip` — 亮色风格（推荐）
-- `ae2wtx-light-mode-classic.zip` — 经典配色
-
-放入 `resourcepacks/` 目录，游戏内启用。
-
 ## 兼容性
 
 - 测试版本：GTNH 2.9.0-beta1
@@ -47,7 +38,7 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 
 ## 许可
 
-LGPL-3.0。移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn，LGPL-3.0）；Light Mode 纹理版权归 **C-H716, _leng, fish_旦** 所有。详细移植说明见 [docs/TECHNICAL.md](docs/TECHNICAL.md)。
+LGPL-3.0。移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn，LGPL-3.0）。详细移植说明见 [docs/TECHNICAL.md](docs/TECHNICAL.md)。
 
 ## 作者
 
