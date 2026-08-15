@@ -271,6 +271,16 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public IGridNode getGridNode(ForgeDirection dir) {
+        // Anti channel-bleed: when a neighbor (FindConnections or a manual
+        // scan) asks for our node from the direction of another transceiver,
+        // report null so the two transceivers never link directly. Cable and
+        // machine neighbors always get the node.
+        if (dir != null && dir != ForgeDirection.UNKNOWN && worldObj != null) {
+            TileEntity te = worldObj.getTileEntity(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ);
+            if (te instanceof LabeledWirelessTransceiverBlockEntity) {
+                return null;
+            }
+        }
         return node;
     }
 
@@ -296,11 +306,10 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public boolean isWorldAccessible() {
-        // false on purpose: rv3's FindConnections would auto-connect ANY
-        // adjacent IGridHost, including a neighboring transceiver (channel
-        // bleed between labels). We create all neighbor connections manually in
-        // maintainLocalConnections(), which skips transceivers.
-        return false;
+        // true so the AE2 Network Visualisation Tool (and FindConnections)
+        // treat this as a real world node; anti channel-bleed is enforced in
+        // getGridNode(dir) which withholds the node from transceiver neighbors.
+        return true;
     }
 
     @Override

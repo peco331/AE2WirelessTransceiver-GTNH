@@ -34,8 +34,13 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 ## 兼容性
 
 - 测试版本：GTNH 2.9.0-beta1
-- 依赖：AE2（GTNH rv3）、GT5-Unofficial
+- 依赖：AE2（GTNH rv3）、GT5-Unofficial、GTNHLib
 - 语言：简体中文 / 繁體中文 / English
+
+## 模型与材质来源
+
+- 3D 方块模型与贴图适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**（作者 **C-H716, _leng, fish_旦**），其版权归原作者所有
+- 方块模型由 [GTNHLib](https://github.com/GTNewHorizons/GTNHLib) 现代模型系统渲染
 
 ## 许可
 
