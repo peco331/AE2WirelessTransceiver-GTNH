@@ -209,8 +209,10 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
         if (cull) {
             GL11.glDisable(GL11.GL_CULL_FACE);
         }
+        // NOTE: RenderBlocks.renderBlockAsItem() already called
+        // Tessellator.startDrawingQuads() before invoking us and will call
+        // draw() afterwards - we must NOT start/draw here.
         Tessellator tess = Tessellator.instance;
-        tess.startDrawingQuads();
         // inventory standard full brightness
         tess.setBrightness(0x00F000F0);
         LightModel model = (metadata == 1 ? MODEL_ON : MODEL_OFF);
@@ -219,7 +221,6 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
                 renderElement(tess, el, icon, 1.0F, 1.0F, 1.0F);
             }
         }
-        tess.draw();
         if (cull) {
             GL11.glEnable(GL11.GL_CULL_FACE);
         }
@@ -228,8 +229,8 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
 
     /** Simple 6-face cube for the vanilla (16px) inventory icon. */
     private static void renderCubeInventory(IIcon icon) {
+        // NOTE: outer renderBlockAsItem owns startDrawingQuads/draw
         Tessellator tess = Tessellator.instance;
-        tess.startDrawingQuads();
         tess.setBrightness(0x00F000F0); // inventory standard full brightness
         float minU = icon.getMinU();
         float maxU = icon.getMaxU();
@@ -271,7 +272,6 @@ public class TransceiverRenderer implements ISimpleBlockRenderingHandler {
         tess.addVertexWithUV(1, 1, 0, minU, maxV);
         tess.addVertexWithUV(1, 1, 1, maxU, maxV);
         tess.addVertexWithUV(1, 0, 1, maxU, minV);
-        tess.draw();
     }
 
     @Override
