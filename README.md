@@ -59,9 +59,15 @@ VERSION=1.0.1 gradlew reobfJar
 
 ## 材质包 Resource Pack
 
-`resourcepacks/ae2wtx-light-mode/`（或 `ae2wtx-light-mode.zip`）提供 **128x 亮色（Light Mode）外观**：
+两套 **128x 亮色（Light Mode）外观**，游戏内资源包可随时切换（勿同时启用两套）：
 
-- 收发器方块：128x 高清亮色纹理（放置于游戏 `resourcepacks/` 目录后在游戏内启用；on 状态为提亮版以近似 1.20.1 的 lighting 发光层，1.7.10 无 emissive 渲染）
+| 包 | 外观 | 说明 |
+|---|---|---|
+| `ae2wtx-light-mode-labeled.zip` | 标签无线收发器风格 | 亮色高清（推荐） |
+| `ae2wtx-light-mode-classic.zip` | 经典无线收发器风格 | 同包的另一套配色 |
+
+- **在线状态带呼吸动画**：on 贴图为动画纹理（labeled 13 帧 / classic 27 帧，帧节奏沿用原版 lighting 层），模拟 1.20.1 的发光呼吸效果（1.7.10 无 emissive 渲染，用亮度烘焙近似）
+- **无法复刻的部分**：1.20.1 的 `light_emission`（方块自发光，1.7.10 需 mod 代码支持）与 channel 0-5 状态覆盖层（本 mod 方块无 6 态 meta）
 - 适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**，作者 **C-H716, _leng, fish_旦**，其版权归原作者所有
 
 ## 作者 Author
