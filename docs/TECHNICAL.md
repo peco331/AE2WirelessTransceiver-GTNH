@@ -81,24 +81,23 @@ cn.gtnh.ae2wtx
 
 ## 5. 渲染与外观
 
-- 标准 1.7.10 六面渲染（`getRenderType` 默认），16x 原版 EAEP 贴图（off/on 两态）
-- 自发光：`getLightValue(IBlockAccess,...)` 在线 10/15，离线 0；状态翻转时 `updateLightByType` 重算
-- **已放弃**：Light Mode 3D 模型移植（1.20.1 blockbench 模型无法在 1.7.10 可靠复刻——旋转元素/UV 语义/背面剔除/Angelica 兼容等导致缺面与透明，物品栏与掉落物渲染异常）。曾尝试 `ISimpleBlockRenderingHandler` 方案（31 元素、按贴图尺寸切换、方向光照、剔除禁用），因效果不可控而回滚
+- **3D 模型（GTNHLib 现代模型系统）**：方块渲染采用 blockbench 模型（Light Mode plain 版，31 元素）
+  - 资源：`assets/ae2wtx/blockstates/labeled_wireless_transceiver.json`（variants: meta=0/1）+ `models/blocks/lable_off.json`（channel0 状态）/ `lable_on.json`（channel5 状态 + 发光核心元素）
+  - 方块 `getRenderType() = ModelISBRH.JSON_ISBRH_ID`；`ModelRegistry.registerModid("ae2wtx")` 客户端 init 注册
+  - **纹理路径陷阱**：gtnhlib 的模型纹理从 **`textures/blocks/`（1.7.10 复数）** 加载（TEXEX 正则 `^([^:]+:)blocks?/` 剥离模型引用中的 `block/` 前缀），不是 1.8 的 `textures/block/`
+  - **动画**：on 模型发光核心引用 lighting 帧条（16x432 + mcmeta frametime 2），gtnhlib `AnimatedTexture` 自动播放（呼吸发光）；off 模型隐藏核心用透明贴图（避免 z-fighting 闪烁）
+  - 渲染性能：gtnhlib 自带模型缓存（BLOCKSTATE_MODEL_CACHE/JSON_MODEL_CACHE），烘焙一次性、渲染走 DirectTessellator/CEL；纹理仅 128x，影响可忽略
+- 自发光：`getLightValue(IBlockAccess,...)` 在线 15/15，离线 0；状态翻转时 `updateLightByType` 重算
+- 默认方块贴图（`textures/blocks/wireless_transceiver/lable_*`）作为 getIcon/粒子 fallback
 
 ## 6. 已知限制
 
-- **channel 0-5 状态覆盖层**未复刻（plain 版 6 态 meta 专属；本 mod 方块仅 off/on 两态，频道信息由 Waila/GUI 呈现）
-- **Light Mode 材质包**已移除（3D 模型移植失败后不再提供）
+- **channel 0-5 全部六态**未复刻（本 mod 方块仅 off/on 两态，off=channel0 外观 / on=channel5 外观；频道实时信息由 Waila/GUI 呈现）
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
 - 设备计数为方块级近似（非 AE 通道分配语义）；饱和时显示需求而非分配值
+- 早期手写 `ISimpleBlockRenderingHandler` 方案已废弃（缺面/透明/物品栏异常），改由 GTNHLib 官方模型系统承担
 
 ## 7. 交互决策记录
-
-- **channel 0-5 状态覆盖层**未复刻（plain 版 6 态 meta 专属；本 mod 方块仅 off/on 两态，频道信息由 Waila/GUI 呈现）
-- **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
-- 设备计数为方块级近似（非 AE 通道分配语义）；饱和时显示需求而非分配值
-
-## 8. 交互决策记录
 
 - 右键 = 打开 GUI；扳手右键 = 锁定；扳手潜行右键 = 拆卸（AE2 式地面掉落）
 - 所有频段/频道操作均通过 GUI 完成（早期版本的数字频率增删交互已废弃）
