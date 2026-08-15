@@ -656,6 +656,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         int meta = online ? 1 : 0;
         if (worldObj.getBlockMetadata(xCoord, yCoord, zCoord) != meta) {
             worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 3);
+            // block emits light while online - recalc lighting when the
+            // emissive state flips
+            worldObj.updateLightByType(net.minecraft.world.EnumSkyBlock.Block, xCoord, yCoord, zCoord);
         }
     }
 
