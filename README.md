@@ -57,6 +57,13 @@ VERSION=1.0.1 gradlew reobfJar
 
 **第三方组件声明**：Applied Energistics 2（AE2, MIT License）、GregTech 5 Unofficial、SpongePowered Mixin（MIT License）、ExtendedAE_Plus（LGPL-3.0）。各组件版权归其原作者所有。
 
+## 材质包 Resource Pack
+
+`resourcepacks/ae2wtx-light-mode/`（或 `ae2wtx-light-mode.zip`）提供 **128x 亮色（Light Mode）外观**：
+
+- 收发器方块：128x 高清亮色纹理（放置于游戏 `resourcepacks/` 目录后在游戏内启用；on 状态为提亮版以近似 1.20.1 的 lighting 发光层，1.7.10 无 emissive 渲染）
+- 适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**，作者 **C-H716, _leng, fish_旦**，其版权归原作者所有
+
 ## 作者 Author
 
 - [peco331](https://github.com/peco331)
