@@ -10,7 +10,7 @@
 		"0": "ae2wtx:block/wireless_transceiver/liang_zi_huan",
 		"2": "ae2wtx:block/wireless_transceiver/wireless_transceiver",
 		"8": "ae2wtx:block/wireless_transceiver/wireless_transceiver_channel5",
-		"1": "ae2wtx:block/wireless_transceiver/wireless_transceiver_lighting", "particle": "ae2wtx:block/wireless_transceiver/wireless_transceiver"
+		"1": "ae2wtx:block/wireless_transceiver/wireless_transceiver_lighting", "particle": "ae2wtx:block/wireless_transceiver/lable_wireless_transceiver_on"
 	},
 	"elements": [
 		{

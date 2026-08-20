@@ -11,7 +11,7 @@
 		"1": "ae2wtx:block/wireless_transceiver/wireless_transceiver_lighting_off",
 		"2": "ae2wtx:block/wireless_transceiver/wireless_transceiver",
 		"3": "ae2wtx:block/wireless_transceiver/wireless_transceiver_channel0",
-		"particle": "ae2wtx:block/wireless_transceiver/wireless_transceiver"
+		"particle": "ae2wtx:block/wireless_transceiver/lable_wireless_transceiver_off"
 	},
 	"elements": [
 		{
