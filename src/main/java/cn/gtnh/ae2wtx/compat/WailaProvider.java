@@ -51,13 +51,19 @@ public class WailaProvider implements IWailaDataProvider {
             }
             // channels used by THIS transceiver (denominator = capacity the ME
             // network actually grants: 32 dense, infinite mode shows plain count)
+            int used = lte.getUsedChannelsForDisplay();
             int max = lte.getMaxChannelsForDisplay();
             if (max <= 0 || max >= 1_000_000) {
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels",
-                    lte.getUsedChannelsForDisplay()));
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", used));
+            } else if (used > max) {
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
+                    "\u00A7c" + used, max));
+            } else if (used == max) {
+                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
+                    "\u00A7e" + used, max));
             } else {
                 currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
-                    lte.getUsedChannelsForDisplay(), max));
+                    used, max));
             }
             // channels used by ALL endpoints of this frequency (label) - wording
             // matches the GUI "本频段频道 x/y"; over capacity -> red, full -> yellow

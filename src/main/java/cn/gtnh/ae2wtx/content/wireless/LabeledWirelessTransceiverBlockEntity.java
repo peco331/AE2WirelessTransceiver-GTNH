@@ -427,72 +427,54 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     /**
-     * Device count: every block/part whose grid node carries REQUIRE_CHANNEL
-     * counts as ONE channel consumer - regardless of how many internal grid
-     * nodes it has (a Dual ME Interface with item+fluid nodes counts once).
-     * Block-level BFS; machines expand too, so chains of adjacent machines
-     * (several Dual ME Interfaces in a row) all count. Devices that could not
-     * get a channel still carry REQUIRE_CHANNEL, so over capacity naturally
-     * shows as 32+x/32. Transceivers and ME controllers are skipped.
+     * Device count: traverses the real AE2 grid connections (cables and machines)
+     * starting from this transceiver's local node. Every connected block/part
+     * carrying REQUIRE_CHANNEL counts as ONE channel consumer. Multi-node machines
+     * (e.g. Dual ME Interface) deduplicate by IGridHost. Devices that could not
+     * get a channel still carry REQUIRE_CHANNEL, so over capacity naturally shows
+     * as 33/32 (or more).
+     *
+     * Transceiver-to-transceiver links, virtual label nodes, and ME controllers
+     * (boundary anchor) are not crossed, confining the count to this transceiver's
+     * local branch. Un-cabled / unconnected blocks in the physical world are never
+     * visited.
      */
     private int countDeviceConsumers() {
-        java.util.Set<Long> visited = new java.util.HashSet<>();
-        java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
-        visited.add(encodePos(xCoord, yCoord, zCoord));
-        queue.add(new int[] { xCoord, yCoord, zCoord });
-        int devices = 0;
+        if (node == null || beingRemoved || isInvalid()) {
+            return 0;
+        }
+        java.util.Set<IGridNode> visitedNodes = new java.util.HashSet<>();
+        java.util.Set<Object> countedDevices = new java.util.HashSet<>();
+        java.util.ArrayDeque<IGridNode> queue = new java.util.ArrayDeque<>();
+
+        visitedNodes.add(node);
+        queue.add(node);
+
         while (!queue.isEmpty()) {
-            int[] cur = queue.poll();
-            for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
-                int nx = cur[0] + dir.offsetX;
-                int ny = cur[1] + dir.offsetY;
-                int nz = cur[2] + dir.offsetZ;
-                if (!visited.add(encodePos(nx, ny, nz))) {
+            IGridNode cur = queue.poll();
+            for (IGridConnection conn : cur.getConnections()) {
+                IGridNode other = conn.getOtherSide(cur);
+                if (other == null || !visitedNodes.add(other)) {
                     continue;
                 }
-                TileEntity te = worldObj.getTileEntity(nx, ny, nz);
-                if (te == null || te == this) {
+                // Never traverse across virtual label nodes or other wireless transceivers
+                if (other.getGridBlock() instanceof LabeledWirelessTransceiverBlockEntity
+                    || other.getGridBlock() instanceof LabelNetworkRegistry.VirtualLabelNodeHost) {
                     continue;
                 }
-                if (te instanceof LabeledWirelessTransceiverBlockEntity) {
-                    continue; // never count other transceivers
+                // ME Controller acts as a channel source / network boundary: stop traversal
+                if (other.getMachine() != null && other.getMachine().getClass().getSimpleName().equals("TileController")) {
+                    continue;
                 }
-                if (te instanceof appeng.tile.networking.TileController) {
-                    continue; // controller anchor: stop walking the network
+                // Count channel consumers
+                if (other.hasFlag(GridFlags.REQUIRE_CHANNEL)) {
+                    IGridHost host = other.getMachine();
+                    countedDevices.add(host != null ? host : other);
                 }
-                if (te instanceof appeng.tile.networking.TileCableBus) {
-                    appeng.tile.networking.TileCableBus bus = (appeng.tile.networking.TileCableBus) te;
-                    for (ForgeDirection pd : ForgeDirection.VALID_DIRECTIONS) {
-                        appeng.api.parts.IPart part = bus.getPart(pd);
-                        if (part == null || part instanceof appeng.parts.networking.PartCable) {
-                            continue;
-                        }
-                        if (isChannelConsumer(part.getGridNode())) {
-                            devices++;
-                        }
-                    }
-                    queue.add(new int[] { nx, ny, nz }); // keep walking
-                } else if (te instanceof IGridHost) {
-                    if (isChannelConsumer(((IGridHost) te).getGridNode(ForgeDirection.UNKNOWN))) {
-                        devices++;
-                    }
-                    // machines expand too: adjacent machine chains (Dual ME
-                    // Interfaces in a row) must all be visited
-                    queue.add(new int[] { nx, ny, nz });
-                }
+                queue.add(other);
             }
         }
-        return devices;
-    }
-
-    /** True when the node is a channel consumer (machine/bus/interface/...). */
-    private static boolean isChannelConsumer(IGridNode gn) {
-        return gn instanceof appeng.me.GridNode
-            && ((appeng.me.GridNode) gn).hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
-    }
-
-    private static long encodePos(int x, int y, int z) {
-        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (y & 0xFFF) << 26) | (z & 0x3FFFFFF);
+        return countedDevices.size();
     }
 
     public int getMaxChannelsForDisplay() {
