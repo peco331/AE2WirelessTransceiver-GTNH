@@ -5,7 +5,9 @@
   "refmap": "mixins.ae2wtx.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",
-  "mixins": [],
+  "mixins": [
+    "MixinToolNetworkVisualiser"
+  ],
   "client": [],
   "server": []
 }
