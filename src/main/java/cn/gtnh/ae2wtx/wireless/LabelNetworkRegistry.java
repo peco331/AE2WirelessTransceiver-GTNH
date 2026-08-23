@@ -46,6 +46,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
     public static final UUID PUBLIC_NETWORK_UUID = new UUID(0, 0);
 
     private final Map<Key, LabelNetwork> networks = new HashMap<>();
+    private final Set<PendingEndpointClear> pendingClears = new HashSet<>();
     private long nextChannel = CHANNEL_START;
 
     public LabelNetworkRegistry() {
@@ -137,6 +138,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
         // Endpoint refs always store the REAL dimension of the endpoint so
         // they can be located for stats even when the network key is global.
         network.endpoints.add(new EndpointRef(beWorld.provider.dimensionId, endpoint.getX(), endpoint.getY(), endpoint.getZ()));
+        network.invalidateStats();
         markDirty();
         return network;
     }
@@ -148,7 +150,9 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
         int realDim = world.provider.dimensionId;
         for (LabelNetwork net : networks.values()) {
-            net.endpoints.removeIf(ref -> ref.matches(realDim, endpoint.getX(), endpoint.getY(), endpoint.getZ()));
+            if (net.endpoints.removeIf(ref -> ref.matches(realDim, endpoint.getX(), endpoint.getY(), endpoint.getZ()))) {
+                net.invalidateStats();
+            }
         }
         markDirty();
     }
@@ -170,13 +174,76 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
         UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
         Integer dim = ModConfig.wirelessCrossDimEnable ? null : world.provider.dimensionId;
-        LabelNetwork net = networks.remove(new Key(dim, label, owner));
+        Key key = new Key(dim, label, owner);
+        LabelNetwork net = networks.remove(key);
         if (net != null) {
+            List<EndpointRef> snapshot = new ArrayList<>(net.endpoints);
             net.destroyVirtualNode();
+
+            MinecraftServer server = MinecraftServer.getServer();
+            for (EndpointRef ref : snapshot) {
+                boolean cleared = false;
+                if (server != null && ref.dim != null) {
+                    World targetWorld = server.worldServerForDimension(ref.dim);
+                    if (targetWorld != null && targetWorld.blockExists(ref.x, ref.y, ref.z)) {
+                        TileEntity te = targetWorld.getTileEntity(ref.x, ref.y, ref.z);
+                        if (te instanceof cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) {
+                            cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity lte =
+                                (cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) te;
+                            if (Objects.equals(label, lte.getLabelForDisplay())
+                                && Objects.equals(owner, lte.getPlacerId() == null ? PUBLIC_NETWORK_UUID : lte.getPlacerId())) {
+                                lte.clearLabelAfterNetworkDeletion();
+                                cleared = true;
+                            }
+                        }
+                    }
+                }
+                if (!cleared && ref.dim != null) {
+                    pendingClears.add(new PendingEndpointClear(ref.dim, ref.x, ref.y, ref.z, label, owner));
+                }
+            }
             markDirty();
             return true;
         }
         return false;
+    }
+
+    public synchronized boolean checkAndConsumePendingClear(World world, int x, int y, int z, String currentLabel, UUID placerId) {
+        if (world == null || currentLabel == null || currentLabel.isEmpty() || pendingClears.isEmpty()) {
+            return false;
+        }
+        int dim = world.provider.dimensionId;
+        UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
+        String normalized = normalizeLabel(currentLabel);
+        if (normalized == null) {
+            return false;
+        }
+
+        PendingEndpointClear match = null;
+        for (PendingEndpointClear pc : pendingClears) {
+            if (pc.dim == dim && pc.x == x && pc.y == y && pc.z == z) {
+                if (Objects.equals(pc.label, normalized) && Objects.equals(pc.owner, owner)) {
+                    match = pc;
+                    break;
+                }
+            }
+        }
+        if (match != null) {
+            pendingClears.remove(match);
+            markDirty();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized void cleanupStalePendingClear(World world, int x, int y, int z) {
+        if (world == null || pendingClears.isEmpty()) {
+            return;
+        }
+        int dim = world.provider.dimensionId;
+        if (pendingClears.removeIf(pc -> pc.dim == dim && pc.x == x && pc.y == y && pc.z == z)) {
+            markDirty();
+        }
     }
 
     public synchronized List<Snapshot> listNetworks(World world, UUID placerId) {
@@ -221,6 +288,13 @@ public class LabelNetworkRegistry extends WorldSavedData {
             net.loadEndpoints(nbt.getTagList("endpoints", 10));
             networks.put(new Key(dim, label, owner), net);
         }
+        this.pendingClears.clear();
+        if (tag.hasKey("pendingClears", 9)) {
+            NBTTagList pList = tag.getTagList("pendingClears", 10);
+            for (int i = 0; i < pList.tagCount(); i++) {
+                pendingClears.add(PendingEndpointClear.load(pList.getCompoundTagAt(i)));
+            }
+        }
     }
 
     @Override
@@ -239,6 +313,13 @@ public class LabelNetworkRegistry extends WorldSavedData {
             list.appendTag(nbt);
         }
         tag.setTag("networks", list);
+        if (!pendingClears.isEmpty()) {
+            NBTTagList pList = new NBTTagList();
+            for (PendingEndpointClear pc : pendingClears) {
+                pList.appendTag(pc.save());
+            }
+            tag.setTag("pendingClears", pList);
+        }
     }
 
     /* ===================== types ===================== */
@@ -411,6 +492,10 @@ public class LabelNetworkRegistry extends WorldSavedData {
             }
         }
 
+        public synchronized void invalidateStats() {
+            this.lastStatsWorldTime = -1;
+        }
+
         public synchronized void destroyVirtualNode() {
             if (virtualNode != null) {
                 try {
@@ -436,6 +521,68 @@ public class LabelNetworkRegistry extends WorldSavedData {
             for (int i = 0; i < list.tagCount(); i++) {
                 endpoints.add(EndpointRef.load(list.getCompoundTagAt(i)));
             }
+        }
+    }
+
+    public static final class PendingEndpointClear {
+
+        public final int dim;
+        public final int x;
+        public final int y;
+        public final int z;
+        public final String label;
+        public final UUID owner;
+
+        public PendingEndpointClear(int dim, int x, int y, int z, String label, UUID owner) {
+            this.dim = dim;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.label = label;
+            this.owner = owner;
+        }
+
+        NBTTagCompound save() {
+            NBTTagCompound tag = new NBTTagCompound();
+            tag.setInteger("dim", dim);
+            tag.setInteger("x", x);
+            tag.setInteger("y", y);
+            tag.setInteger("z", z);
+            if (label != null) {
+                tag.setString("label", label);
+            }
+            if (owner != null) {
+                tag.setString("owner", owner.toString());
+            }
+            return tag;
+        }
+
+        static PendingEndpointClear load(NBTTagCompound tag) {
+            int dim = tag.getInteger("dim");
+            int x = tag.getInteger("x");
+            int y = tag.getInteger("y");
+            int z = tag.getInteger("z");
+            String label = tag.getString("label");
+            UUID owner = tag.hasKey("owner") ? UUID.fromString(tag.getString("owner")) : PUBLIC_NETWORK_UUID;
+            return new PendingEndpointClear(dim, x, y, z, label, owner);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof PendingEndpointClear)) {
+                return false;
+            }
+            PendingEndpointClear that = (PendingEndpointClear) o;
+            return dim == that.dim && x == that.x && y == that.y && z == that.z
+                && Objects.equals(label, that.label) && Objects.equals(owner, that.owner);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(dim, x, y, z, label, owner);
         }
     }
 

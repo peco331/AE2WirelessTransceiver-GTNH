@@ -19,6 +19,7 @@ public class LabelApplyPacket implements IMessage {
     private int y;
     private int z;
     private String label;
+    private boolean valid = true;
 
     public LabelApplyPacket() {}
 
@@ -27,14 +28,22 @@ public class LabelApplyPacket implements IMessage {
         this.y = y;
         this.z = z;
         this.label = label;
+        this.valid = true;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
+        if (buf == null || buf.readableBytes() < 16) {
+            valid = false;
+            return;
+        }
         x = buf.readInt();
         y = buf.readInt();
         z = buf.readInt();
-        label = NetworkBufferUtils.readUtf8(buf, 256);
+        label = NetworkBufferUtils.tryReadUtf8(buf, 256);
+        if (label == null) {
+            valid = false;
+        }
     }
 
     @Override
@@ -42,13 +51,16 @@ public class LabelApplyPacket implements IMessage {
         buf.writeInt(x);
         buf.writeInt(y);
         buf.writeInt(z);
-        NetworkBufferUtils.writeUtf8(buf, label);
+        NetworkBufferUtils.writeUtf8(buf, label, 256);
     }
 
     public static class Handler implements IMessageHandler<LabelApplyPacket, IMessage> {
 
         @Override
         public IMessage onMessage(LabelApplyPacket msg, MessageContext ctx) {
+            if (!msg.valid) {
+                return null;
+            }
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             World world = player.worldObj;
             if (player.getDistanceSq(msg.x + 0.5D, msg.y + 0.5D, msg.z + 0.5D) > 64.0D) {

@@ -7,7 +7,7 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 ## 功能
 
 - **无线桥接 ME 频道**：命名频段（Band），支持跨维度
-- **频段管理 GUI**：新建 / 删除 / 设定 / 断开，搜索，实时信息
+- **频段管理 GUI**：新建 / 删除 / 设定 / 断开，搜索，实时信息（删除频段时自动断开并清理所有关联收发器，未加载区块中的设备未来加载时自动清理，杜绝已删除频段复活）
 - **频道占用显示**：本机频道与全频段占用（超载红色 / 满载黄色），按设备统计
 - **AE2 网络可视化工具支持**：手持 ToolNetworkVisualiser 查看 3D 拓扑时，在同频段收发器之间正确显示致密拓扑连线与频道负载（仅合成显示数据包，不改变底层 AE2 网络结构）
 - **3D 模型外观**：blockbench 模型（Light Mode 风格），在线时核心呼吸发光
@@ -25,12 +25,12 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 
 ## 配置
 
-游戏内：Mod 列表 → Config（即时生效）；或编辑 `config/ae2wtx.cfg`：
+游戏内：Mod 列表 → Config；或编辑 `config/ae2wtx.cfg`：
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `wireless.wirelessCrossDimEnable` | `true` | 跨维度无线桥接 |
-| `wireless.wirelessTransceiverIdlePower` | `10.0` | 节点空闲 AE 功耗 (AE/t) |
+| `wireless.wirelessCrossDimEnable` | `true` | 跨维度无线桥接（**修改后需要完整重启游戏/服务端生效**） |
+| `wireless.wirelessTransceiverIdlePower` | `10.0` | 节点空闲 AE 功耗 (AE/t)（即时生效） |
 
 ## 兼容性
 

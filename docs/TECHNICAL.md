@@ -16,8 +16,8 @@
 
 ```bash
 # JDK 25 + Gradle（gtnhconvention 2.0.26，腾讯镜像）
-VERSION=1.0.4 gradlew reobfJar
-# 产物：build/libs/ae2wtx-1.0.4.jar
+VERSION=1.0.5 gradlew reobfJar
+# 产物：build/libs/ae2wtx-1.0.5.jar
 ```
 
 - Mixin 基础设施启用（`usesMixins=true`），注册 `MixinToolNetworkVisualiser` 拦截网络可视化数据包
@@ -72,6 +72,21 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - **防盗与权限校验**：`TransceiverSecurity.canManage(player, te)` 保证未锁定收发器可正常交互；锁定收发器仅拥有者（Owner UUID）与服务器管理员（OP）可进行扳手拆卸、切换解锁与 GUI 频段管理。
 - **距离校验**：Container 与所有 C2S 操作数据包（`LabelApplyPacket`、`LabelListRequestPacket`）严格校验玩家与目标方块的欧几里得距离平方（$\le 64.0\text{D}$，即 8 格以内）。
 - **字节流安全**：`NetworkBufferUtils` 校验字符串长度边界与可读字节数，防范畸形包攻击。
+
+### 3.9 频段删除生命周期与墓碑机制 (Band Deletion Lifecycle & Tombstone)
+- **已加载端点立即清除**：删除频段时快照 `net.endpoints`，已加载区块中的收发器立即调用 `clearLabelAfterNetworkDeletion()`，断开真实无线连接并重置频率与显示标签。
+- **未加载端点持久化墓碑**：未加载区块中的收发器记录在 `LabelNetworkRegistry` 的 `pendingClears`（墓碑集合），随世界 NBT 持久化存储。
+- **杜绝已删除频段复活**：离线端点在未来区块加载并执行 `refreshLabel()` 时，首先检查并消耗对应的墓碑标记，安全清空本地标签与频率，绝不自动重新注册已删除的频段。
+- **所有者与坐标严格隔离**：墓碑包含 `(dim, x, y, z, label, owner)`，相同坐标新建其他频段或不同所有者的同名频段绝不发生误清。
+
+### 3.10 运行时配置语义 (Runtime Config Semantics)
+- `wireless.wirelessCrossDimEnable`：参与 `LabelNetwork.Key` 的维度哈希与底层 AE2 网格定位，**标记为 `setRequiresMcRestart(true)`**；游戏内修改保存到配置文件，但运行时活动值仅在游戏/服务端启动时加载一次，避免产生跨维混合死锁。
+- `wireless.wirelessTransceiverIdlePower`：功耗参数支持游戏内 Config 界面即时修改并实时生效。
+
+### 3.11 数据包解码防御与空字符串语义区分 (Packet Decoder Hardening)
+- 严格区分“合法空字符串”（代表玩家主动清空标签/断开连接）与“畸形异常数据包”（长度为负数、超过上限或超出缓冲区可读字节数）。
+- `NetworkBufferUtils.tryReadUtf8` 在格式异常时返回 `null` 并将数据包标记为 `valid = false`，服务端/客户端 Handler 直接丢弃该数据包，绝不将其误当作断开连接或篡改状态。
+- `LabelListResponsePacket` 严格校验 `count` 上限（$\le 10000$），异常时整包丢弃，杜绝字节错位解析。
 
 ## 4. 架构
 
