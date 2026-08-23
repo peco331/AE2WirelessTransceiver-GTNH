@@ -4,6 +4,8 @@
 
 A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 
+[下载最新版本](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) · [详细更新日志](CHANGELOG.md) · [技术文档](docs/TECHNICAL.md)
+
 ## 功能
 
 - **无线桥接 ME 频道**：命名频段（Band），支持跨维度
