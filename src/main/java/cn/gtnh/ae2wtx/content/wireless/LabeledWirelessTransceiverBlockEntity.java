@@ -560,6 +560,12 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return !alreadyCounted;
     }
 
+    /**
+     * Capacity shared by every wireless band endpoint. Transceivers and their
+     * virtual band nodes both advertise DENSE_CAPACITY, so this is always 32
+     * when channels are enabled and unlimited when AE2 disables channels.
+     * It does not depend on which band is currently selected in the GUI.
+     */
     public int getMaxChannelsForDisplay() {
         if (worldObj != null && worldObj.isRemote) {
             return maxChannelsSync;

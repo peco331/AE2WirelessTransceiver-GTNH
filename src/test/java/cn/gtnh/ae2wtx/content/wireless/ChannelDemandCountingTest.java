@@ -23,6 +23,13 @@ import appeng.api.util.IReadOnlyCollection;
 public class ChannelDemandCountingTest {
 
     @Test
+    public void wirelessTransceiverAdvertisesDenseCapacityForEveryBand() {
+        assertEquals(
+            EnumSet.of(GridFlags.DENSE_CAPACITY),
+            new LabeledWirelessTransceiverBlockEntity().getFlags());
+    }
+
+    @Test
     public void countsThirtyThreeDemandNodesWithoutConsultingActiveState() throws Exception {
         NodeHandler root = new NodeHandler(EnumSet.noneOf(GridFlags.class), basicGridBlock());
         for (int i = 0; i < 33; i++) {
