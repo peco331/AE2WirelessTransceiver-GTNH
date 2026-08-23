@@ -27,6 +27,9 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
 
     public static final int GUI_ID = 1;
 
+    /** Vanilla standard-block renderer until optional GTNHLib integration succeeds. */
+    private static volatile int optionalModelRenderType;
+
     @SideOnly(Side.CLIENT)
     private IIcon iconOff;
 
@@ -101,7 +104,7 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
         TileEntity te = world.getTileEntity(x, y, z);
         if (te instanceof LabeledWirelessTransceiverBlockEntity
             && ((LabeledWirelessTransceiverBlockEntity) te).isLocked()) {
-            return base * 0.1F;
+            return base * 10.0F;
         }
         return base;
     }
@@ -118,10 +121,15 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
 
     /* ===================== rendering ===================== */
 
-    /** GTNHLib JSON model rendering (blockbench 3D model). */
+    /** Optional GTNHLib JSON model, otherwise vanilla standard-block rendering. */
     @Override
     public int getRenderType() {
-        return com.gtnewhorizon.gtnhlib.client.model.ModelISBRH.JSON_ISBRH_ID;
+        return optionalModelRenderType;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public static void setOptionalModelRenderType(int renderType) {
+        optionalModelRenderType = renderType;
     }
 
     @Override

@@ -55,29 +55,16 @@ public class WailaProvider implements IWailaDataProvider {
             int max = lte.getMaxChannelsForDisplay();
             if (max <= 0 || max >= 1_000_000) {
                 currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", used));
-            } else if (used > max) {
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
-                    "\u00A7c" + used, max));
-            } else if (used == max) {
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
-                    "\u00A7e" + used, max));
             } else {
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of",
-                    used, max));
+                currenttip.add(StatCollector.translateToLocalFormatted(
+                    "extendedae_plus.jade.channels_of",
+                    ChannelDisplayFormatter.colorizeUsed(used, max),
+                    max));
             }
             // channels used by ALL endpoints of this frequency (label) - wording
             // matches the GUI "本频段频道 x/y"; over capacity -> red, full -> yellow
             int net = lte.getNetworkChannelsForDisplay();
-            String netVal;
-            if (max <= 0 || max >= 1_000_000) {
-                netVal = net + "/\u221E";
-            } else if (net > max) {
-                netVal = "\u00A7c" + net + "/" + max;
-            } else if (net == max) {
-                netVal = "\u00A7e" + net + "/" + max;
-            } else {
-                netVal = net + "/" + max;
-            }
+            String netVal = ChannelDisplayFormatter.formatBand(net, max);
             currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.channels_network_label") + netVal);
             // transceivers online in this band
             currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.band_online",

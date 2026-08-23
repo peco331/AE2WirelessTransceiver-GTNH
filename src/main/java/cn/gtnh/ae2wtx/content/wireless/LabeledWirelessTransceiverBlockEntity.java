@@ -1,6 +1,8 @@
 package cn.gtnh.ae2wtx.content.wireless;
 
 import java.util.EnumSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.UUID;
 
 import net.minecraft.item.ItemStack;
@@ -25,8 +27,10 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridBlock;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridHost;
+import appeng.api.networking.IGridMultiblock;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.energy.IEnergyGrid;
+import appeng.api.networking.events.MENetworkPowerIdleChange;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEColor;
 import appeng.api.util.DimensionalCoord;
@@ -56,68 +60,49 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public void updateEntity() {
-        if (worldObj == null || worldObj.isRemote) {
+        if (worldObj == null || worldObj.isRemote || isInvalid() || beingRemoved) {
             // NOTE: rv3 forbids createGridNode() on the client ("Grid features
             // are server side only") - never build a client-side grid here.
             return;
         }
+        // Forge's dormant chunk cache can resume the same TileEntity instance
+        // without calling validate(). A temporary unload must therefore be
+        // recoverable from updateEntity() itself.
+        if (chunkUnloading) {
+            chunkUnloading = false;
+            firstTickDone = false;
+        }
+        if (node == null) {
+            node = AEApi.instance().createGridNode(this);
+            markChannelCountDirty();
+        }
+        // Player identity participates in AE2's security check. It must be set
+        // before refreshLabel can create the wireless connection, before the
+        // manual physical connection scan, and before updateState discovers
+        // neighbors on its own.
+        applyNodeIdentity();
         if (!firstTickDone) {
             firstTickDone = true;
-            if (node == null) {
-                node = AEApi.instance().createGridNode(this);
-            }
             refreshLabel(true);
             // immediate first neighbor scan so a freshly placed transceiver
             // connects to adjacent cable without waiting for the 5-tick loop
+            localConnTick = 4;
             maintainLocalConnections();
         }
         if (node != null) {
             // rv3 Grid.update() never calls GridNode.updateState(); periodic
             // re-runs are what join/keep this node in the local ME grid.
-            node.updateState();
-            syncSecurityKey();
-            applyNodeIdentity();
-            maintainLocalConnections();
+            if (!isLocalConnectionRetryDeferred()) {
+                applyNodeIdentity();
+                node.updateState();
+                if (!isLocalConnectionRetryDeferred()) {
+                    maintainLocalConnections();
+                }
+            }
         }
         labelLink.updateStatus();
         updateNetworkChannelStats();
         updateVisualState();
-    }
-
-    private long lastSecurityKey = Long.MIN_VALUE;
-    private int secKeyTick = 0;
-
-    /** Join the grid's security realm so GridConnection's securityCheck passes. */
-    private void syncSecurityKey() {
-        if (node == null) {
-            return;
-        }
-        // grid security keys change rarely - re-check every 10 ticks
-        if (++secKeyTick < 10) {
-            return;
-        }
-        secKeyTick = 0;
-        IGrid grid = node.getGrid();
-        if (grid == null) {
-            return;
-        }
-        try {
-            appeng.me.cache.SecurityCache sc = (appeng.me.cache.SecurityCache) grid
-                .getCache(appeng.api.networking.security.ISecurityGrid.class);
-            if (sc == null) {
-                return;
-            }
-            long key = sc.getSecurityKey();
-            if (key != lastSecurityKey) {
-                lastSecurityKey = key;
-                if (node instanceof appeng.me.GridNode) {
-                    ((appeng.me.GridNode) node).setLastSecurityKey(key);
-                    AE2Wtx.LOG.debug("LWTX security key synced: " + key + " at " + xCoord + "," + yCoord + "," + zCoord);
-                }
-            }
-        } catch (Exception t) {
-            // grid cache hiccup - retry next tick
-        }
     }
 
     private int cachedPlayerId = -1;
@@ -145,6 +130,12 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     private int localConnTick = 0;
+    private long localConnectionRetryNotBeforeTick = Long.MIN_VALUE;
+    private long lastManualConnectionWarningTick = Long.MIN_VALUE;
+
+    private boolean isLocalConnectionRetryDeferred() {
+        return worldObj != null && worldObj.getTotalWorldTime() < localConnectionRetryNotBeforeTick;
+    }
 
     /**
      * Actively create grid connections to adjacent IGridHosts (see plain TE).
@@ -154,13 +145,14 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
      * cannot bleed into each other.
      */
     private void maintainLocalConnections() {
-        if (node == null || beingRemoved || isInvalid()) {
+        if (node == null || beingRemoved || isInvalid() || isLocalConnectionRetryDeferred()) {
             return;
         }
         if (++localConnTick < 5) {
             return;
         }
         localConnTick = 0;
+        applyNodeIdentity();
         for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
             TileEntity te = worldObj.getTileEntity(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ);
             if (!(te instanceof IGridHost) || te == this) {
@@ -184,11 +176,6 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 continue;
             }
             try {
-                // rv3 securityCheck rejects key mismatches (fresh node key = -1
-                // vs loaded AE2 nodes key = 0 / security-station keys). Align
-                // both nodes to the neighbor grid's key before connecting -
-                // the same fix the label link uses.
-                alignSecurityKey(node, other);
                 // CRITICAL: the rv3 API only offers direction-less
                 // createGridConnection (dir=UNKNOWN -> hasDirection()=false ->
                 // GridNode.addConnection skips the ConnectionsChanged
@@ -205,38 +192,18 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 AE2Wtx.LOG.debug("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
             } catch (Exception t) {
-                AE2Wtx.LOG.warn("WTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
-                    + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
-            }
-        }
-    }
-
-    /** Set both nodes to the same security key (grid key if one side has a grid). */
-    private static void alignSecurityKey(IGridNode a, IGridNode b) {
-        if (!(a instanceof appeng.me.GridNode) || !(b instanceof appeng.me.GridNode)) {
-            return;
-        }
-        long key = Long.MIN_VALUE;
-        IGrid g = a.getGrid() != null ? a.getGrid() : b.getGrid();
-        if (g != null) {
-            try {
-                appeng.me.cache.SecurityCache sc = (appeng.me.cache.SecurityCache) g
-                    .getCache(appeng.api.networking.security.ISecurityGrid.class);
-                if (sc != null) {
-                    key = sc.getSecurityKey();
+                long now = worldObj.getTotalWorldTime();
+                localConnectionRetryNotBeforeTick = Math.max(localConnectionRetryNotBeforeTick, now + 100L);
+                if (lastManualConnectionWarningTick == Long.MIN_VALUE
+                    || now - lastManualConnectionWarningTick >= 1200L) {
+                    lastManualConnectionWarningTick = now;
+                    AE2Wtx.LOG.warn("WTX manual connect denied/failed to " + te.getClass().getSimpleName() + " at "
+                        + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ)
+                        + "; retrying in 100 ticks: " + t);
                 }
-            } catch (Exception t) {
-                // keep default
+                break;
             }
         }
-        if (key == Long.MIN_VALUE) {
-            key = ((appeng.me.GridNode) a).getLastSecurityKey();
-            if (key == -1) {
-                key = ((appeng.me.GridNode) b).getLastSecurityKey();
-            }
-        }
-        ((appeng.me.GridNode) a).setLastSecurityKey(key);
-        ((appeng.me.GridNode) b).setLastSecurityKey(key);
     }
 
     private boolean chunkUnloading = false;
@@ -246,6 +213,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         super.validate();
         this.chunkUnloading = false;
         this.beingRemoved = false;
+        this.firstTickDone = false;
+        markChannelCountDirty();
     }
 
     @Override
@@ -270,16 +239,21 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     public void cleanup(boolean unregisterEndpoint) {
-        if (beingRemoved) {
+        if (unregisterEndpoint && beingRemoved) {
             return;
         }
-        beingRemoved = true;
-        labelLink.onUnloadOrRemove();
         if (unregisterEndpoint) {
-            LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
-            if (reg != null) {
+            beingRemoved = true;
+            chunkUnloading = false;
+        }
+        labelLink.onUnloadOrRemove();
+        LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
+        if (reg != null) {
+            if (unregisterEndpoint) {
                 reg.cleanupStalePendingClear(worldObj, xCoord, yCoord, zCoord);
                 reg.unregister(this);
+            } else {
+                reg.suspend(this);
             }
         }
         if (node != null) {
@@ -289,6 +263,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             }
             node = null;
         }
+        firstTickDone = false;
+        markChannelCountDirty();
     }
 
     /* ===================== IGridHost ===================== */
@@ -314,7 +290,11 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     @Override
-    public void securityBreak() {}
+    public void securityBreak() {
+        long now = worldObj == null ? 0L : worldObj.getTotalWorldTime();
+        long retryAt = now + 100L;
+        localConnectionRetryNotBeforeTick = Math.max(localConnectionRetryNotBeforeTick, retryAt);
+    }
 
     /* ===================== IGridBlock ===================== */
 
@@ -347,10 +327,18 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     @Override
-    public void onGridNotification(GridNotification notification) {}
+    public void onGridNotification(GridNotification notification) {
+        if (notification == GridNotification.ConnectionsChanged) {
+            markChannelCountDirty();
+        }
+    }
 
     @Override
-    public void setNetworkStatus(IGrid grid, int channelsInUse) {}
+    public void setNetworkStatus(IGrid grid, int channelsInUse) {
+        // channelsInUse is AE2's allocated count, not demand: a starved 33rd
+        // device contributes zero. Use this callback only as invalidation.
+        markChannelCountDirty();
+    }
 
     @Override
     public EnumSet<ForgeDirection> getConnectableSides() {
@@ -363,7 +351,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     @Override
-    public void gridChanged() {}
+    public void gridChanged() {
+        markChannelCountDirty();
+    }
 
     @Override
     public ItemStack getMachineRepresentation() {
@@ -399,7 +389,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
 
     @Override
     public boolean isEndpointRemoved() {
-        return beingRemoved || worldObj == null || isInvalid();
+        return beingRemoved || chunkUnloading || worldObj == null || isInvalid();
     }
 
     /* ===================== label management ===================== */
@@ -450,11 +440,22 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return serverUsedCache;
     }
 
+    /** Refresh AE2's cached idle drain after the runtime-safe power setting changes. */
+    public void refreshIdlePowerUsage() {
+        if (worldObj == null || worldObj.isRemote || node == null || beingRemoved || isInvalid()) {
+            return;
+        }
+        IGrid grid = node.getGrid();
+        if (grid != null) {
+            grid.postEvent(new MENetworkPowerIdleChange(node));
+        }
+    }
+
     /**
      * Device count: traverses the real AE2 grid connections (cables and machines)
-     * starting from this transceiver's local node. Every connected block/part
-     * carrying REQUIRE_CHANNEL counts as ONE channel consumer. Multi-node machines
-     * (e.g. Dual ME Interface) deduplicate by IGridHost. Devices that could not
+     * starting from this transceiver's local node. Every connected node carrying
+     * REQUIRE_CHANNEL counts as one channel consumer; only AE2 IGridMultiblock
+     * node sets are collapsed to their shared single-channel demand. Devices that could not
      * get a channel still carry REQUIRE_CHANNEL, so over capacity naturally shows
      * as 33/32 (or more).
      *
@@ -467,9 +468,10 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         if (node == null || beingRemoved || isInvalid()) {
             return 0;
         }
-        java.util.Set<IGridNode> visitedNodes = new java.util.HashSet<>();
-        java.util.Set<Object> countedDevices = new java.util.HashSet<>();
+        Set<IGridNode> visitedNodes = new java.util.HashSet<>();
+        Set<IGridNode> countedConsumers = new java.util.HashSet<>();
         java.util.ArrayDeque<IGridNode> queue = new java.util.ArrayDeque<>();
+        int consumers = 0;
 
         visitedNodes.add(node);
         queue.add(node);
@@ -482,23 +484,80 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                     continue;
                 }
                 // Never traverse across virtual label nodes or other wireless transceivers
-                if (other.getGridBlock() instanceof LabeledWirelessTransceiverBlockEntity
-                    || other.getGridBlock() instanceof LabelNetworkRegistry.VirtualLabelNodeHost) {
+                IGridBlock gridBlock = other.getGridBlock();
+                IGridHost machine = other.getMachine();
+                if (gridBlock instanceof LabeledWirelessTransceiverBlockEntity
+                    || machine instanceof LabeledWirelessTransceiverBlockEntity
+                    || gridBlock instanceof LabelNetworkRegistry.VirtualLabelNodeHost
+                    || machine instanceof LabelNetworkRegistry.VirtualLabelNodeHost) {
                     continue;
                 }
                 // ME Controller acts as a channel source / network boundary: stop traversal
-                if (other.getMachine() != null && other.getMachine().getClass().getSimpleName().equals("TileController")) {
+                // TileCreativeEnergyController extends TileController in the locked AE2 build.
+                if (isControllerBoundary(machine)) {
                     continue;
                 }
-                // Count channel consumers
+                // Count demand rather than allocated channels, so missing-channel
+                // nodes are retained and an overloaded branch can show 33/32.
                 if (other.hasFlag(GridFlags.REQUIRE_CHANNEL)) {
-                    IGridHost host = other.getMachine();
-                    countedDevices.add(host != null ? host : other);
+                    if (addChannelConsumer(other, countedConsumers)) {
+                        consumers++;
+                    }
                 }
                 queue.add(other);
             }
         }
-        return countedDevices.size();
+        return consumers;
+    }
+
+    /**
+     * Avoid a hard compile-time reference to TileController: the GTNH AE2 dev
+     * jar exposes optional RotaryCraft interfaces on that class, while those
+     * interfaces are not part of this mod's compile classpath. Matching the
+     * class hierarchy by its stable AE2 name also covers controller subclasses.
+     */
+    private static boolean isControllerBoundary(IGridHost machine) {
+        if (machine == null) {
+            return false;
+        }
+        for (Class<?> type = machine.getClass(); type != null; type = type.getSuperclass()) {
+            if ("appeng.tile.networking.TileController".equals(type.getName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Add one AE2 demand unit, collapsing the complete node set of a multiblock. */
+    private static boolean addChannelConsumer(IGridNode consumer, Set<IGridNode> countedConsumers) {
+        IGridBlock gridBlock = consumer.getGridBlock();
+        if (!consumer.hasFlag(GridFlags.MULTIBLOCK) || !(gridBlock instanceof IGridMultiblock)) {
+            return countedConsumers.add(consumer);
+        }
+
+        Set<IGridNode> members = new java.util.HashSet<>();
+        members.add(consumer);
+        try {
+            Iterator<IGridNode> iterator = ((IGridMultiblock) gridBlock).getMultiblockNodes();
+            while (iterator != null && iterator.hasNext()) {
+                IGridNode member = iterator.next();
+                if (member != null) {
+                    members.add(member);
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // A temporarily rebuilding multiblock still counts via the node we saw.
+        }
+
+        boolean alreadyCounted = false;
+        for (IGridNode member : members) {
+            if (countedConsumers.contains(member)) {
+                alreadyCounted = true;
+                break;
+            }
+        }
+        countedConsumers.addAll(members);
+        return !alreadyCounted;
     }
 
     public int getMaxChannelsForDisplay() {
@@ -567,24 +626,25 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return onlineCountSync;
     }
 
-    public void applyLabel(String rawLabel) {
+    public LabelNetworkRegistry.RegistrationResult applyLabel(String rawLabel) {
         LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
         if (reg == null) {
-            return;
+            return LabelNetworkRegistry.RegistrationResult.createFailed();
         }
         reg.cleanupStalePendingClear(worldObj, xCoord, yCoord, zCoord);
-        reg.unregister(this);
-        LabelNetworkRegistry.LabelNetwork network = reg.register(worldObj, rawLabel, placerId, this);
-        if (network == null) {
-            clearLabel();
-            return;
+        LabelNetworkRegistry.RegistrationResult result = reg.registerForPlayer(worldObj, rawLabel, placerId, this);
+        if (!result.succeeded()) {
+            return result;
         }
+        LabelNetworkRegistry.LabelNetwork network = result.network;
         this.labelForDisplay = LabelNetworkRegistry.normalizeLabel(rawLabel);
         this.frequency = network.channel();
+        markChannelCountDirty();
         this.labelLink.setTarget(network);
         updateVisualState();
         markDirty();
         syncToClients();
+        return result;
     }
 
     public void clearLabel() {
@@ -595,6 +655,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
         this.labelForDisplay = null;
         this.frequency = 0L;
+        markChannelCountDirty();
         this.labelLink.clearTarget();
         updateVisualState();
         markDirty();
@@ -604,6 +665,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     public void clearLabelAfterNetworkDeletion() {
         this.labelForDisplay = null;
         this.frequency = 0L;
+        markChannelCountDirty();
         this.labelLink.clearTarget();
         updateVisualState();
         markDirty();
@@ -616,25 +678,39 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             return;
         }
         if (labelForDisplay == null || labelForDisplay.isEmpty()) {
-            this.frequency = 0L;
-            this.labelLink.clearTarget();
-            updateVisualState();
-            return;
+            LabelNetworkRegistry.LabelNetwork saved = reg
+                .getNetworkForEndpoint(worldObj.provider.dimensionId, xCoord, yCoord, zCoord, placerId);
+            if (saved == null) {
+                this.frequency = 0L;
+                markChannelCountDirty();
+                this.labelLink.clearTarget();
+                updateVisualState();
+                return;
+            }
+            this.labelForDisplay = saved.label();
+            AE2Wtx.LOG.warn(
+                "ae2wtx: restored missing tile label '{}' from the saved endpoint registry at {}:{},{},{}",
+                labelForDisplay,
+                worldObj.provider.dimensionId,
+                xCoord,
+                yCoord,
+                zCoord);
         }
         if (reg.checkAndConsumePendingClear(worldObj, xCoord, yCoord, zCoord, labelForDisplay, placerId)) {
             clearLabelAfterNetworkDeletion();
             return;
         }
-        LabelNetworkRegistry.LabelNetwork network = reg.getNetwork(worldObj, labelForDisplay, placerId);
-        if (network == null && ensureRegister) {
-            network = reg.register(worldObj, labelForDisplay, placerId, this);
-        }
+        LabelNetworkRegistry.LabelNetwork network = ensureRegister
+            ? reg.register(worldObj, labelForDisplay, placerId, this)
+            : reg.getNetwork(worldObj, labelForDisplay, placerId);
         if (network == null) {
             this.frequency = 0L;
+            markChannelCountDirty();
             this.labelLink.clearTarget();
         } else {
             network.ensureVirtualNode(worldObj);
             this.frequency = network.channel();
+            markChannelCountDirty();
             this.labelLink.setTarget(network);
         }
         updateVisualState();
@@ -647,32 +723,75 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     private boolean onlineSync = false;
     private int channelsSync = 0;
     private int maxChannelsSync = 32;
-    private int usedCalcTick = 0;
-    /** Server-side BFS result, refreshed every 10 ticks; read by Waila/GUI/band stats. */
+    private boolean channelCountDirty = false;
+    private long channelCountNotBeforeTick = Long.MIN_VALUE;
+    private long lastChannelCountTick = Long.MIN_VALUE;
+    /** Server-side physical-demand snapshot; read by Waila/GUI/band stats. */
     private int serverUsedCache = 0;
+
+    /**
+     * Invalidate the demand snapshot without traversing the grid inside an AE2
+     * callback. The first event opens a two-tick debounce window; subsequent
+     * events in the same burst do not postpone it indefinitely.
+     */
+    private void markChannelCountDirty() {
+        if (channelCountDirty) {
+            return;
+        }
+        channelCountDirty = true;
+        long now = worldObj == null ? 0L : worldObj.getTotalWorldTime();
+        channelCountNotBeforeTick = now + 2L;
+    }
+
+    private int channelRefreshPhase() {
+        int hash = xCoord * 73428767 ^ yCoord * 912931 ^ zCoord * 438289;
+        return Math.floorMod(hash, 10);
+    }
 
     private void updateVisualState() {
         if (worldObj == null || worldObj.isRemote || beingRemoved || isInvalid()) {
             return;
         }
         boolean linkUp = labelLink != null && labelLink.isConnected();
-        // heavy work (channel counts + grid cache lookups) runs every 10 ticks;
-        // linkUp check is a few field reads, safe every tick
-        if (++usedCalcTick < 10) {
-            return;
-        }
-        usedCalcTick = 0;
-        serverUsedCache = node == null ? 0 : countDeviceConsumers();
-        int max = 32;
-        if (node instanceof appeng.me.GridNode) {
-            max = ((appeng.me.GridNode) node).getMaxChannels();
-        }
-        if (linkUp != onlineSync || serverUsedCache != channelsSync || max != maxChannelsSync) {
+        long now = worldObj.getTotalWorldTime();
+        boolean dirtyReady = channelCountDirty && now >= channelCountNotBeforeTick;
+        boolean fallbackDue = !channelCountDirty && Math.floorMod(now + channelRefreshPhase(), 10L) == 0L;
+        boolean refreshSnapshot = lastChannelCountTick != now && (dirtyReady || fallbackDue);
+
+        boolean syncNeeded = linkUp != onlineSync;
+        if (syncNeeded) {
             onlineSync = linkUp;
-            channelsSync = serverUsedCache;
-            maxChannelsSync = max;
+        }
+
+        if (refreshSnapshot) {
+            lastChannelCountTick = now;
+            channelCountDirty = false;
+            int previousUsed = serverUsedCache;
+            serverUsedCache = node == null ? 0 : countDeviceConsumers();
+            int max = 32;
+            if (node instanceof appeng.me.GridNode) {
+                max = ((appeng.me.GridNode) node).getMaxChannels();
+            }
+            if (serverUsedCache != channelsSync || max != maxChannelsSync) {
+                channelsSync = serverUsedCache;
+                maxChannelsSync = max;
+                syncNeeded = true;
+            }
+            if (serverUsedCache != previousUsed && labelForDisplay != null && !labelForDisplay.isEmpty()) {
+                LabelNetworkRegistry registry = LabelNetworkRegistry.get(worldObj);
+                if (registry != null) {
+                    registry.invalidateStatsFor(this);
+                }
+            }
+        }
+
+        if (syncNeeded) {
             syncToClients();
         }
+        if (!refreshSnapshot) {
+            return;
+        }
+
         IGridNode n = node;
         boolean online = false;
         if (n != null && n.isActive()) {

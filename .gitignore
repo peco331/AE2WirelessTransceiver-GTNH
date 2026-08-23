@@ -1,7 +1,10 @@
 .gradle/
+.gradle-user-home/
 build/
 out/
 run/
+logs/
 .idea/
 *.iml
+*.class
 .vscode/

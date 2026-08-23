@@ -27,10 +27,20 @@ public final class TransceiverSecurity {
         if (!te.isLocked()) {
             return true;
         }
-        UUID owner = te.getPlacerId();
-        if (owner == null || player.getUniqueID().equals(owner)) {
+        if (isOwnerOrOp(player, te)) {
             return true;
         }
-        return isOp(player);
+        // A locked legacy/corrupt tile without an owner must fail closed. An
+        // operator can still unlock it for world recovery through the fallback.
+        return false;
+    }
+
+    /** Destructive band-wide actions are restricted even when the block itself is unlocked. */
+    public static boolean isOwnerOrOp(EntityPlayer player, LabeledWirelessTransceiverBlockEntity te) {
+        if (te == null || player == null) {
+            return false;
+        }
+        UUID owner = te.getPlacerId();
+        return owner != null && player.getUniqueID().equals(owner) || isOp(player);
     }
 }

@@ -7,18 +7,23 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 
 import cn.gtnh.ae2wtx.init.ModBlocks;
+import cn.gtnh.ae2wtx.command.AE2WtxCommand;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.event.FMLServerStoppedEvent;
+import cn.gtnh.ae2wtx.network.ServerTaskQueue;
 
 @Mod(
     modid = AE2Wtx.MODID,
     version = Tags.VERSION,
     name = AE2Wtx.NAME,
     acceptedMinecraftVersions = "[1.7.10]",
-    dependencies = "required-after:appliedenergistics2;required-after:gregtech",
+    dependencies = "required-after:appliedenergistics2@[rv3-beta-1034-GTNH,);"
+        + "required-after:gregtech@[5.09.52.594,);after:gtnhlib",
     guiFactory = "cn.gtnh.ae2wtx.client.gui.ModGuiFactory")
 public class AE2Wtx {
 
@@ -53,5 +58,15 @@ public class AE2Wtx {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        event.registerServerCommand(new AE2WtxCommand());
+    }
+
+    @Mod.EventHandler
+    public void serverStopped(FMLServerStoppedEvent event) {
+        ServerTaskQueue.shutdown();
     }
 }

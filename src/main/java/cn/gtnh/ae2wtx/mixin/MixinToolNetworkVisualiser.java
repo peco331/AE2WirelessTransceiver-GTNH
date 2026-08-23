@@ -25,8 +25,8 @@ public abstract class MixinToolNetworkVisualiser {
         at = @At(
             value = "NEW",
             target = "(Ljava/util/ArrayList;Ljava/util/ArrayList;)Lappeng/core/sync/packets/PacketNetworkVisualiserData;",
-            remap = false
-        )
+            remap = false),
+        require = 1
     )
     private PacketNetworkVisualiserData ae2wtx$addWirelessVisualisationLinks(
         ArrayList<VNode> nodes,

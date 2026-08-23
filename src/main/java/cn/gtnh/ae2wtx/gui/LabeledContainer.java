@@ -29,8 +29,8 @@ public class LabeledContainer extends Container {
 
     @Override
     public boolean canInteractWith(EntityPlayer player) {
-        if (world == null) {
-            return true;
+        if (world == null || player == null || player.worldObj != world) {
+            return false;
         }
         if (!(world.getBlock(x, y, z) instanceof LabeledWirelessTransceiverBlock)) {
             return false;
@@ -40,5 +40,10 @@ public class LabeledContainer extends Container {
             return false;
         }
         return player.getDistanceSq(x + 0.5D, y + 0.5D, z + 0.5D) <= 64.0D;
+    }
+
+    /** Exact target match used by server-side custom-packet validation. */
+    public boolean matches(World targetWorld, int targetX, int targetY, int targetZ) {
+        return world != null && world == targetWorld && x == targetX && y == targetY && z == targetZ;
     }
 }
