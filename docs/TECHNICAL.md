@@ -74,8 +74,12 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - **字节流安全**：`NetworkBufferUtils` 校验字符串长度边界与可读字节数，防范畸形包攻击。
 
 ### 3.9 频段删除生命周期与墓碑机制 (Band Deletion Lifecycle & Tombstone)
+- **区分临时卸载与永久移除**：
+  - 区块卸载（`onChunkUnload`）：仅销毁本地 GridNode 并断开运行时无线连接，**在 `LabelNetworkRegistry` 中保留 `EndpointRef` 索引**，不注销端点；
+  - 真正方块拆除（`breakBlock` / 扳手拆卸 / 永久销毁）：执行完整 `cleanup(true)`，从注册表中 `unregister(this)` 注销 `EndpointRef`；
+  - 统计遍历安全：`updateStatsIfNeeded()` 使用 `world.blockExists()` 严格跳过未加载区块，绝不强制加载区块。
 - **已加载端点立即清除**：删除频段时快照 `net.endpoints`，已加载区块中的收发器立即调用 `clearLabelAfterNetworkDeletion()`，断开真实无线连接并重置频率与显示标签。
-- **未加载端点持久化墓碑**：未加载区块中的收发器记录在 `LabelNetworkRegistry` 的 `pendingClears`（墓碑集合），随世界 NBT 持久化存储。
+- **未加载端点持久化墓碑**：由于未加载端点在区块卸载期间仍保留在 `endpoints` 中，删除频段时可准确将其捕获并记录在 `LabelNetworkRegistry` 的 `pendingClears`（墓碑集合），随世界 NBT 持久化存储。
 - **杜绝已删除频段复活**：离线端点在未来区块加载并执行 `refreshLabel()` 时，首先检查并消耗对应的墓碑标记，安全清空本地标签与频率，绝不自动重新注册已删除的频段。
 - **所有者与坐标严格隔离**：墓碑包含 `(dim, x, y, z, label, owner)`，相同坐标新建其他频段或不同所有者的同名频段绝不发生误清。
 
