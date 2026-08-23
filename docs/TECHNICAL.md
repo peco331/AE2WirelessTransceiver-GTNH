@@ -67,6 +67,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - 其他无线收发器、频段虚拟节点和 ME Controller 是不计数且不穿越的边界；无标志线缆节点不计数但继续遍历。
 - 结果缓存 `serverUsedCache`：拓扑事件置 dirty 后 2 tick 合并刷新，稳定状态每 10 tick 错峰校准；Waila/GUI/全网统计只读缓存。
 - maxChannels 读 `GridNode.getMaxChannels()`（rv3: `CHANNEL_COUNT[compressedData&3]` = {0, 8, 32, MAX_VALUE}；无限频道模式显示 ∞）
+- 收发器节点与频段虚拟节点都固定声明 `DENSE_CAPACITY`，因此所有频段的显示容量统一为 `32`；全局关闭 AE2 频道时统一为 `∞`。周围普通线缆的 8 频道限制不会改变无线节点自身的 `/32` 显示口径。
 - 全网占用 = 各端点缓存之和；超载（>max）标红、满载（==max）标黄
 
 ### 3.6 性能优化与缓存
