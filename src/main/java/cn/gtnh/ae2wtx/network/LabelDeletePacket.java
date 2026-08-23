@@ -13,27 +13,35 @@ import io.netty.buffer.ByteBuf;
 public class LabelDeletePacket implements IMessage {
 
     private String label;
+    private boolean valid = true;
 
     public LabelDeletePacket() {}
 
     public LabelDeletePacket(String label) {
         this.label = label;
+        this.valid = true;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        label = NetworkBufferUtils.readUtf8(buf, 256);
+        label = NetworkBufferUtils.tryReadUtf8(buf, 256);
+        if (label == null || label.isEmpty()) {
+            valid = false;
+        }
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
-        NetworkBufferUtils.writeUtf8(buf, label);
+        NetworkBufferUtils.writeUtf8(buf, label, 256);
     }
 
     public static class Handler implements IMessageHandler<LabelDeletePacket, IMessage> {
 
         @Override
         public IMessage onMessage(LabelDeletePacket msg, MessageContext ctx) {
+            if (!msg.valid) {
+                return null;
+            }
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             World world = player.worldObj;
             LabelNetworkRegistry reg = LabelNetworkRegistry.get(world);

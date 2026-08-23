@@ -36,6 +36,8 @@ public class LabelListResponsePacket implements IMessage {
     private int maxChannels;
     private int networkChannels;
 
+    private boolean valid = true;
+
     public LabelListResponsePacket() {}
 
     public LabelListResponsePacket(List<LabelNetworkRegistry.Snapshot> snapshots, String currentLabel, String ownerName,
@@ -49,6 +51,7 @@ public class LabelListResponsePacket implements IMessage {
         this.usedChannels = usedChannels;
         this.maxChannels = maxChannels;
         this.networkChannels = networkChannels;
+        this.valid = true;
     }
 
     public List<Entry> getEntries() {
@@ -81,17 +84,35 @@ public class LabelListResponsePacket implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        int count = buf.readInt();
-        entries = new ArrayList<>();
-        if (count > 0 && count <= 10000) {
-            for (int i = 0; i < count; i++) {
-                String label = NetworkBufferUtils.readUtf8(buf, 256);
-                long channel = buf.readLong();
-                entries.add(new Entry(label, channel));
-            }
+        if (buf == null || buf.readableBytes() < 4) {
+            valid = false;
+            return;
         }
-        currentLabel = NetworkBufferUtils.readUtf8(buf, 256);
-        ownerName = NetworkBufferUtils.readUtf8(buf, 256);
+        int count = buf.readInt();
+        if (count < 0 || count > 10000) {
+            valid = false;
+            return;
+        }
+        entries = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            String label = NetworkBufferUtils.tryReadUtf8(buf, 256);
+            if (label == null || buf.readableBytes() < 8) {
+                valid = false;
+                return;
+            }
+            long channel = buf.readLong();
+            entries.add(new Entry(label, channel));
+        }
+        currentLabel = NetworkBufferUtils.tryReadUtf8(buf, 256);
+        if (currentLabel == null) {
+            valid = false;
+            return;
+        }
+        ownerName = NetworkBufferUtils.tryReadUtf8(buf, 256);
+        if (ownerName == null || buf.readableBytes() < 16) {
+            valid = false;
+            return;
+        }
         onlineCount = buf.readInt();
         usedChannels = buf.readInt();
         maxChannels = buf.readInt();
@@ -102,11 +123,11 @@ public class LabelListResponsePacket implements IMessage {
     public void toBytes(ByteBuf buf) {
         buf.writeInt(entries.size());
         for (Entry e : entries) {
-            NetworkBufferUtils.writeUtf8(buf, e.label);
+            NetworkBufferUtils.writeUtf8(buf, e.label, 256);
             buf.writeLong(e.channel);
         }
-        NetworkBufferUtils.writeUtf8(buf, currentLabel);
-        NetworkBufferUtils.writeUtf8(buf, ownerName);
+        NetworkBufferUtils.writeUtf8(buf, currentLabel, 256);
+        NetworkBufferUtils.writeUtf8(buf, ownerName, 256);
         buf.writeInt(onlineCount);
         buf.writeInt(usedChannels);
         buf.writeInt(maxChannels);
@@ -118,6 +139,9 @@ public class LabelListResponsePacket implements IMessage {
         @Override
         @SideOnly(Side.CLIENT)
         public IMessage onMessage(LabelListResponsePacket msg, MessageContext ctx) {
+            if (!msg.valid) {
+                return null;
+            }
             Minecraft.getMinecraft().func_152344_a(() -> {
                 if (Minecraft.getMinecraft().currentScreen instanceof LabeledTransceiverGui) {
                     ((LabeledTransceiverGui) Minecraft.getMinecraft().currentScreen)

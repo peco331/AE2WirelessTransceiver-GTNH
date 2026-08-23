@@ -548,6 +548,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         if (reg == null) {
             return;
         }
+        reg.cleanupStalePendingClear(worldObj, xCoord, yCoord, zCoord);
         reg.unregister(this);
         LabelNetworkRegistry.LabelNetwork network = reg.register(worldObj, rawLabel, placerId, this);
         if (network == null) {
@@ -565,8 +566,18 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     public void clearLabel() {
         LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
         if (reg != null) {
+            reg.cleanupStalePendingClear(worldObj, xCoord, yCoord, zCoord);
             reg.unregister(this);
         }
+        this.labelForDisplay = null;
+        this.frequency = 0L;
+        this.labelLink.clearTarget();
+        updateVisualState();
+        markDirty();
+        syncToClients();
+    }
+
+    public void clearLabelAfterNetworkDeletion() {
         this.labelForDisplay = null;
         this.frequency = 0L;
         this.labelLink.clearTarget();
@@ -584,6 +595,10 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             this.frequency = 0L;
             this.labelLink.clearTarget();
             updateVisualState();
+            return;
+        }
+        if (reg.checkAndConsumePendingClear(worldObj, xCoord, yCoord, zCoord, labelForDisplay, placerId)) {
+            clearLabelAfterNetworkDeletion();
             return;
         }
         LabelNetworkRegistry.LabelNetwork network = reg.getNetwork(worldObj, labelForDisplay, placerId);
