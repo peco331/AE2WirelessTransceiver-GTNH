@@ -83,45 +83,30 @@ public class LabelListResponsePacket implements IMessage {
     public void fromBytes(ByteBuf buf) {
         int count = buf.readInt();
         entries = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            int len = buf.readInt();
-            String label = new String(buf.readBytes(len).array(), java.nio.charset.StandardCharsets.UTF_8);
-            long channel = buf.readLong();
-            entries.add(new Entry(label, channel));
+        if (count > 0 && count <= 10000) {
+            for (int i = 0; i < count; i++) {
+                String label = NetworkBufferUtils.readUtf8(buf, 256);
+                long channel = buf.readLong();
+                entries.add(new Entry(label, channel));
+            }
         }
-        currentLabel = readString(buf);
-        ownerName = readString(buf);
+        currentLabel = NetworkBufferUtils.readUtf8(buf, 256);
+        ownerName = NetworkBufferUtils.readUtf8(buf, 256);
         onlineCount = buf.readInt();
         usedChannels = buf.readInt();
         maxChannels = buf.readInt();
         networkChannels = buf.readInt();
     }
 
-    private static String readString(ByteBuf buf) {
-        int len = buf.readInt();
-        if (len <= 0) {
-            return "";
-        }
-        return new String(buf.readBytes(len).array(), java.nio.charset.StandardCharsets.UTF_8);
-    }
-
-    private static void writeString(ByteBuf buf, String s) {
-        byte[] bytes = s == null ? new byte[0] : s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        buf.writeInt(bytes.length);
-        if (bytes.length > 0) {
-            buf.writeBytes(bytes);
-        }
-    }
-
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(entries.size());
         for (Entry e : entries) {
-            writeString(buf, e.label);
+            NetworkBufferUtils.writeUtf8(buf, e.label);
             buf.writeLong(e.channel);
         }
-        writeString(buf, currentLabel);
-        writeString(buf, ownerName);
+        NetworkBufferUtils.writeUtf8(buf, currentLabel);
+        NetworkBufferUtils.writeUtf8(buf, ownerName);
         buf.writeInt(onlineCount);
         buf.writeInt(usedChannels);
         buf.writeInt(maxChannels);

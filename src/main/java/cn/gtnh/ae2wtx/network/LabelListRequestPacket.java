@@ -46,12 +46,15 @@ public class LabelListRequestPacket implements IMessage {
         public IMessage onMessage(LabelListRequestPacket msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             World world = player.worldObj;
+            if (player.getDistanceSq(msg.x + 0.5D, msg.y + 0.5D, msg.z + 0.5D) > 64.0D) {
+                return null;
+            }
             LabelNetworkRegistry reg = LabelNetworkRegistry.get(world);
             if (reg == null) {
                 return null;
             }
             java.util.UUID owner = player.getUniqueID();
-            var list = reg.listNetworks(owner);
+            var list = reg.listNetworks(world, owner);
 
             String currentLabel = "";
             String ownerName = "";

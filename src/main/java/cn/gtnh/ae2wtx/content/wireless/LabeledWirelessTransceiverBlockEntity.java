@@ -115,7 +115,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                     AE2Wtx.LOG.debug("LWTX security key synced: " + key + " at " + xCoord + "," + yCoord + "," + zCoord);
                 }
             }
-        } catch (Throwable t) {
+        } catch (Exception t) {
             // grid cache hiccup - retry next tick
         }
     }
@@ -139,7 +139,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             if (cachedPlayerId >= 0 && node.getPlayerID() != cachedPlayerId) {
                 node.setPlayerID(cachedPlayerId);
             }
-        } catch (Throwable t) {
+        } catch (Exception t) {
             // registry hiccup - retry next tick
         }
     }
@@ -204,7 +204,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 }
                 AE2Wtx.LOG.debug("WTX manual connect OK: " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ));
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 AE2Wtx.LOG.warn("WTX manual connect FAILED to " + te.getClass().getSimpleName() + " at "
                     + (xCoord + dir.offsetX) + "," + (yCoord + dir.offsetY) + "," + (zCoord + dir.offsetZ) + ": " + t);
             }
@@ -225,7 +225,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 if (sc != null) {
                     key = sc.getSecurityKey();
                 }
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 // keep default
             }
         }
@@ -640,7 +640,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             try {
                 IGrid grid = n.getGrid();
                 online = grid != null && ((IEnergyGrid) grid.getCache(IEnergyGrid.class)).isNetworkPowered();
-            } catch (Throwable ignored) {
+            } catch (Exception ignored) {
                 online = false;
             }
         }

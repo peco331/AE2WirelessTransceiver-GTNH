@@ -15,7 +15,7 @@ public class ModGuiHandler implements IGuiHandler {
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
         if (id == GUI_LABELED && world.getBlock(x, y, z) instanceof LabeledWirelessTransceiverBlock) {
-            return new LabeledContainer();
+            return new LabeledContainer(world, x, y, z);
         }
         return null;
     }
@@ -23,7 +23,7 @@ public class ModGuiHandler implements IGuiHandler {
     @Override
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
         if (id == GUI_LABELED && world.getBlock(x, y, z) instanceof LabeledWirelessTransceiverBlock) {
-            return new LabeledTransceiverGui(new LabeledContainer(), player, x, y, z);
+            return new LabeledTransceiverGui(new LabeledContainer(world, x, y, z), player, x, y, z);
         }
         return null;
     }

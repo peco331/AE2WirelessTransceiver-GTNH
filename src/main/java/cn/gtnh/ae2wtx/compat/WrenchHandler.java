@@ -90,12 +90,22 @@ public class WrenchHandler {
                 return;
             }
             event.setCanceled(true);
+            LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
             if (player.isSneaking()) {
                 // sneak + right: disassemble (AE2-style ground drop)
+                if (lte.isLocked() && !cn.gtnh.ae2wtx.content.wireless.TransceiverSecurity.canManage(player, lte)) {
+                    player.addChatMessage(new ChatComponentTranslation(
+                        "extendedae_plus.chat.wireless_transceiver.locked"));
+                    return;
+                }
                 disassemble(event.world, event.x, event.y, event.z);
             } else {
                 // right (not sneaking): toggle lock
-                LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
+                if (lte.isLocked() && !cn.gtnh.ae2wtx.content.wireless.TransceiverSecurity.canManage(player, lte)) {
+                    player.addChatMessage(new ChatComponentTranslation(
+                        "extendedae_plus.chat.wireless_transceiver.locked"));
+                    return;
+                }
                 boolean newLocked = !lte.isLocked();
                 lte.setLocked(newLocked);
                 event.world.playSoundEffect(event.x + 0.5D, event.y + 0.5D, event.z + 0.5D,

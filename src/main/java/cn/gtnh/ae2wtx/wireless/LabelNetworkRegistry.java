@@ -179,9 +179,9 @@ public class LabelNetworkRegistry extends WorldSavedData {
         return false;
     }
 
-    public synchronized List<Snapshot> listNetworks(UUID placerId) {
+    public synchronized List<Snapshot> listNetworks(World world, UUID placerId) {
         UUID owner = placerId == null ? PUBLIC_NETWORK_UUID : placerId;
-        Integer dim = ModConfig.wirelessCrossDimEnable ? null : 0; // list is global under cross-dim; else overworld scope
+        Integer dim = ModConfig.wirelessCrossDimEnable ? null : (world != null ? world.provider.dimensionId : 0);
         List<Snapshot> list = new ArrayList<>();
         for (Map.Entry<Key, LabelNetwork> entry : networks.entrySet()) {
             Key key = entry.getKey();
@@ -296,6 +296,10 @@ public class LabelNetworkRegistry extends WorldSavedData {
         private IGridNode virtualNode;
         private VirtualLabelNodeHost virtualHost;
 
+        private int cachedTotalUsedChannels = 0;
+        private int cachedOnlineEndpointCount = 0;
+        private long lastStatsWorldTime = -1;
+
         LabelNetwork(Integer dim, String label, UUID owner, long channel) {
             this.dim = dim;
             this.label = label;
@@ -319,30 +323,46 @@ public class LabelNetworkRegistry extends WorldSavedData {
             return endpoints.size();
         }
 
-        /**
-         * Number of transceivers in this band that are ACTUALLY online
-         * (tile exists and its label link is connected). Stale endpoint refs
-         * are skipped, unlike {@link #endpointCount()}.
-         */
-        public int onlineEndpointCount() {
+        private synchronized void updateStatsIfNeeded() {
             MinecraftServer server = MinecraftServer.getServer();
-            if (server == null || server.worldServers == null) {
-                return 0;
+            if (server == null || server.worldServers == null || server.worldServers.length == 0) {
+                return;
             }
+            long time = server.worldServers[0].getTotalWorldTime();
+            if (lastStatsWorldTime != -1 && time >= lastStatsWorldTime && (time - lastStatsWorldTime) < 20) {
+                return;
+            }
+            lastStatsWorldTime = time;
+
+            int total = 0;
             int online = 0;
             for (EndpointRef ref : endpoints) {
                 World w = server.worldServerForDimension(ref.dim);
                 if (w == null) {
                     continue;
                 }
-                net.minecraft.tileentity.TileEntity te = w.getTileEntity(ref.x, ref.y, ref.z);
+                TileEntity te = w.getTileEntity(ref.x, ref.y, ref.z);
                 if (te instanceof cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) {
-                    if (((cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) te).isOnline()) {
+                    cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity lte =
+                        (cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) te;
+                    if (lte.isOnline()) {
                         online++;
                     }
+                    total += lte.getUsedChannelsForDisplay();
                 }
             }
-            return online;
+            this.cachedTotalUsedChannels = total;
+            this.cachedOnlineEndpointCount = online;
+        }
+
+        /**
+         * Number of transceivers in this band that are ACTUALLY online
+         * (tile exists and its label link is connected). Stale endpoint refs
+         * are skipped, unlike {@link #endpointCount()}.
+         */
+        public int onlineEndpointCount() {
+            updateStatsIfNeeded();
+            return cachedOnlineEndpointCount;
         }
 
         /**
@@ -352,23 +372,8 @@ public class LabelNetworkRegistry extends WorldSavedData {
          * whole label's channel usage so they know how many channels remain.
          */
         public int totalUsedChannels() {
-            MinecraftServer server = MinecraftServer.getServer();
-            if (server == null || server.worldServers == null) {
-                return 0;
-            }
-            int total = 0;
-            for (EndpointRef ref : endpoints) {
-                World w = server.worldServerForDimension(ref.dim);
-                if (w == null) {
-                    continue;
-                }
-                net.minecraft.tileentity.TileEntity te = w.getTileEntity(ref.x, ref.y, ref.z);
-                if (te instanceof cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) {
-                    total += ((cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity) te)
-                        .getUsedChannelsForDisplay();
-                }
-            }
-            return total;
+            updateStatsIfNeeded();
+            return cachedTotalUsedChannels;
         }
 
         /** Ensure the virtual node exists (recreate after world load). */
@@ -380,10 +385,15 @@ public class LabelNetworkRegistry extends WorldSavedData {
                 return true;
             }
             MinecraftServer server = MinecraftServer.getServer();
-            if (server == null || server.worldServers == null || server.worldServers.length == 0) {
+            if (server == null) {
                 return false;
             }
-            World hostLevel = dim == null ? server.worldServers[0] : (dim == 0 ? server.worldServers[0] : server.worldServers[dim]);
+            World hostLevel;
+            if (dim == null) {
+                hostLevel = server.worldServerForDimension(0);
+            } else {
+                hostLevel = server.worldServerForDimension(dim);
+            }
             if (hostLevel == null) {
                 return false;
             }
@@ -393,8 +403,8 @@ public class LabelNetworkRegistry extends WorldSavedData {
                 this.virtualHost.setNode(virtualNode);
                 this.virtualNode.updateState();
                 return true;
-            } catch (Throwable t) {
-                AE2Wtx.LOG.warn("ae2wtx: failed to create label virtual node for '{}': {}", label, t.toString());
+            } catch (Exception e) {
+                AE2Wtx.LOG.warn("ae2wtx: failed to create label virtual node for '{}': {}", label, e.toString());
                 this.virtualNode = null;
                 this.virtualHost = null;
                 return false;
@@ -405,7 +415,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
             if (virtualNode != null) {
                 try {
                     virtualNode.destroy();
-                } catch (Throwable ignored) {
+                } catch (Exception ignored) {
                     // already gone
                 }
             }
@@ -429,12 +439,12 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
     }
 
-    private static final class EndpointRef {
+    public static final class EndpointRef {
 
-        final Integer dim;
-        final int x;
-        final int y;
-        final int z;
+        public final Integer dim;
+        public final int x;
+        public final int y;
+        public final int z;
 
         EndpointRef(Integer dim, int x, int y, int z) {
             this.dim = dim;
@@ -444,12 +454,12 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
 
         boolean matches(int currentDim, int cx, int cy, int cz) {
-            return dim == currentDim && x == cx && y == cy && z == cz;
+            return dim != null && dim == currentDim && x == cx && y == cy && z == cz;
         }
 
         NBTTagCompound save() {
             NBTTagCompound tag = new NBTTagCompound();
-            tag.setInteger("dim", dim);
+            tag.setInteger("dim", dim != null ? dim : 0);
             tag.setInteger("x", x);
             tag.setInteger("y", y);
             tag.setInteger("z", z);
@@ -460,6 +470,23 @@ public class LabelNetworkRegistry extends WorldSavedData {
             // legacy data may lack "dim" (global refs) - assume overworld
             int d = tag.hasKey("dim") ? tag.getInteger("dim") : 0;
             return new EndpointRef(d, tag.getInteger("x"), tag.getInteger("y"), tag.getInteger("z"));
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof EndpointRef)) {
+                return false;
+            }
+            EndpointRef that = (EndpointRef) o;
+            return x == that.x && y == that.y && z == that.z && Objects.equals(dim, that.dim);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(dim, x, y, z);
         }
     }
 

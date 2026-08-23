@@ -22,15 +22,12 @@ public class LabelDeletePacket implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        int len = buf.readInt();
-        label = new String(buf.readBytes(len).array(), java.nio.charset.StandardCharsets.UTF_8);
+        label = NetworkBufferUtils.readUtf8(buf, 256);
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
-        byte[] bytes = label == null ? new byte[0] : label.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        buf.writeInt(bytes.length);
-        buf.writeBytes(bytes);
+        NetworkBufferUtils.writeUtf8(buf, label);
     }
 
     public static class Handler implements IMessageHandler<LabelDeletePacket, IMessage> {
@@ -40,7 +37,7 @@ public class LabelDeletePacket implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             World world = player.worldObj;
             LabelNetworkRegistry reg = LabelNetworkRegistry.get(world);
-            if (reg != null) {
+            if (reg != null && msg.label != null && !msg.label.isEmpty()) {
                 reg.removeNetwork(world, msg.label, player.getUniqueID());
             }
             return null;

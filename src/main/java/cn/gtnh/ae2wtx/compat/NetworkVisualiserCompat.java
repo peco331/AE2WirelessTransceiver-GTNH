@@ -8,6 +8,7 @@ import java.util.Map;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.ForgeDirection;
 
@@ -36,13 +37,8 @@ public final class NetworkVisualiserCompat {
         }
     }
 
-    public static void appendWirelessVisualisationLinks(ArrayList<VNode> nodes, ArrayList<VLink> links) {
-        if (nodes == null || nodes.isEmpty() || links == null) {
-            return;
-        }
-
-        MinecraftServer server = MinecraftServer.getServer();
-        if (server == null || server.worldServers == null || server.worldServers.length == 0) {
+    public static void appendWirelessVisualisationLinks(World world, ArrayList<VNode> nodes, ArrayList<VLink> links) {
+        if (world == null || nodes == null || nodes.isEmpty() || links == null) {
             return;
         }
 
@@ -52,12 +48,17 @@ public final class NetworkVisualiserCompat {
             if (vnode == null) {
                 continue;
             }
-            LabeledWirelessTransceiverBlockEntity transceiver = findTransceiver(server, vnode.x, vnode.y, vnode.z);
-            if (transceiver != null && !transceiver.isInvalid()) {
-                long freq = transceiver.getFrequency();
-                if (freq > 0L) {
-                    byFrequency.computeIfAbsent(freq, k -> new ArrayList<>())
-                        .add(new WirelessVisualNode(vnode, transceiver, freq));
+            if (world.blockExists(vnode.x, vnode.y, vnode.z)) {
+                TileEntity te = world.getTileEntity(vnode.x, vnode.y, vnode.z);
+                if (te instanceof LabeledWirelessTransceiverBlockEntity) {
+                    LabeledWirelessTransceiverBlockEntity transceiver = (LabeledWirelessTransceiverBlockEntity) te;
+                    if (!transceiver.isInvalid()) {
+                        long freq = transceiver.getFrequency();
+                        if (freq > 0L) {
+                            byFrequency.computeIfAbsent(freq, k -> new ArrayList<>())
+                                .add(new WirelessVisualNode(vnode, transceiver, freq));
+                        }
+                    }
                 }
             }
         }
@@ -87,18 +88,6 @@ public final class NetworkVisualiserCompat {
                 links.add(new VLink(anchor.vnode, peer.vnode, channels, flags));
             }
         }
-    }
-
-    private static LabeledWirelessTransceiverBlockEntity findTransceiver(MinecraftServer server, int x, int y, int z) {
-        for (WorldServer ws : server.worldServers) {
-            if (ws != null && ws.blockExists(x, y, z)) {
-                TileEntity te = ws.getTileEntity(x, y, z);
-                if (te instanceof LabeledWirelessTransceiverBlockEntity) {
-                    return (LabeledWirelessTransceiverBlockEntity) te;
-                }
-            }
-        }
-        return null;
     }
 
     private static boolean isSameLocation(VNode a, VNode b) {

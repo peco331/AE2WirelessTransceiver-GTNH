@@ -16,12 +16,12 @@
 
 ```bash
 # JDK 25 + Gradle（gtnhconvention 2.0.26，腾讯镜像）
-VERSION=1.0.1 gradlew reobfJar
-# 产物：build/libs/ae2wtx-1.0.1.jar
+VERSION=1.0.4 gradlew reobfJar
+# 产物：build/libs/ae2wtx-1.0.4.jar
 ```
 
-- Mixin 基础设施启用（`usesMixins=true`）但当前 mixins 列表为空（频道卡相关 mixin 已随功能移除）
-- 依赖：`Applied-Energistics-2-Unofficial:rv3-beta-977-GTNH`、`GT5-Unofficial:5.09.52.594`
+- Mixin 基础设施启用（`usesMixins=true`），注册 `MixinToolNetworkVisualiser` 拦截网络可视化数据包
+- 依赖：`Applied-Energistics-2-Unofficial:rv3-beta-1034-GTNH`（匹配 GTNH 2.9.0-beta2 整合包实际版本）、`GT5-Unofficial:5.09.52.594`、`GTNHLib:0.11.39`
 
 ## 3. GTNH/rv3 适配要点（踩坑记录）
 
@@ -42,8 +42,10 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - `applyNodeIdentity()`：设置放置者的 AE2 `playerID`（安全站网格需要）
 - 手动建连前 `alignSecurityKey(a, b)`：把两端节点键对齐到邻居网格的 key（无网格时保持 -1/-1，两边相等即通过 securityCheck）
 
-### 3.4 防串频道
-- 收发器 `isWorldAccessible() = false`：rv3 FindConnections 不再自动扫描邻居（否则相邻收发器互连）
+### 3.4 防串频道与节点可见性
+- 收发器 `isWorldAccessible() = true`：确保 AE2 原版 `ToolNetworkVisualiser` 将其识别为真实物理方块节点加入 `VNode` 列表
+- 防串频道保护：在 `getGridNode(ForgeDirection dir)` 中检查方向上的邻居方块实体，若为其他收发器则直接返回 `null`，彻底杜绝相邻收发器直接互连
+- `VirtualLabelNodeHost` 保持 `isWorldAccessible() = false`，作为内部虚拟中继节点，不暴露在世界物理网格中
 - `maintainLocalConnections()`（每 5 tick）手动扫描 6 方向 IGridHost 建连，**跳过其他收发器**
 - 每 tick 保留 `node.updateState()`（网格接入关键）
 
@@ -54,11 +56,22 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - maxChannels 读 `GridNode.getMaxChannels()`（rv3: `CHANNEL_COUNT[compressedData&3]` = {0, 8, 32, MAX_VALUE}；无限频道模式显示 ∞）
 - 全网占用 = 各端点缓存之和；超载（>max）标红、满载（==max）标黄
 
-### 3.6 性能优化
+### 3.6 性能优化与缓存
 - BFS 设备计数：10 tick 节流 + 缓存（Waila/GUI 不重复执行）
 - `LabelNetworkRegistry.get()`：WeakHashMap 实例缓存（消除每 20 tick 的 `loadData` 磁盘 I/O）
+- `LabelNetwork` 频段统计缓存：全频段频道总数与在线收发器数下沉至 `LabelNetwork` 进行 20-tick 共享缓存，同频段所有收发器共享单次统计结果，将 $O(N^2)$ 全网扫描降低至 $O(N)$
 - 安全键同步 10 tick 节流；AE2 playerID 按 owner 缓存
 - 视觉状态（IEnergyGrid 查询、meta 更新）10 tick 节流；连接日志 DEBUG 级
+
+### 3.7 AE2 Network Visualiser 无线拓扑合成架构
+- **真实网格与可视化解耦**：
+  - 底层 AE2 Grid 拓扑：每个收发器仅与该频段的 `VirtualLabelNodeHost` 保持一条真实的 `IGridConnection`；绝不创建 `Transceiver A <-> Transceiver B` 的真实物理连接，避免网格循环回路与频道紊乱。
+  - 客户端 3D 拓扑渲染：通过 `MixinToolNetworkVisualiser` 在 `ToolNetworkVisualiser.onUpdate` 服务端发送封包前拦截数据，由 `NetworkVisualiserCompat` 从当前视角 `World` 中已有的 `VNode` 列表过滤出有效频段节点，按坐标字典序升序生成确定的 $N-1$ 阶星型生成树（Spanning Star Tree），连线标记为 `VLinkFlags.DENSE`，并填入各收发器连接虚拟节点的实际无线占用频道数。
+
+### 3.8 服务端安全与权限模型
+- **防盗与权限校验**：`TransceiverSecurity.canManage(player, te)` 保证未锁定收发器可正常交互；锁定收发器仅拥有者（Owner UUID）与服务器管理员（OP）可进行扳手拆卸、切换解锁与 GUI 频段管理。
+- **距离校验**：Container 与所有 C2S 操作数据包（`LabelApplyPacket`、`LabelListRequestPacket`）严格校验玩家与目标方块的欧几里得距离平方（$\le 64.0\text{D}$，即 8 格以内）。
+- **字节流安全**：`NetworkBufferUtils` 校验字符串长度边界与可读字节数，防范畸形包攻击。
 
 ## 4. 架构
 

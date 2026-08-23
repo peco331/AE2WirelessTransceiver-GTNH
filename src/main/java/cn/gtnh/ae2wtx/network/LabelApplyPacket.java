@@ -2,9 +2,11 @@ package cn.gtnh.ae2wtx.network;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
+import cn.gtnh.ae2wtx.content.wireless.TransceiverSecurity;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -32,8 +34,7 @@ public class LabelApplyPacket implements IMessage {
         x = buf.readInt();
         y = buf.readInt();
         z = buf.readInt();
-        int len = buf.readInt();
-        label = new String(buf.readBytes(len).array(), java.nio.charset.StandardCharsets.UTF_8);
+        label = NetworkBufferUtils.readUtf8(buf, 256);
     }
 
     @Override
@@ -41,9 +42,7 @@ public class LabelApplyPacket implements IMessage {
         buf.writeInt(x);
         buf.writeInt(y);
         buf.writeInt(z);
-        byte[] bytes = label == null ? new byte[0] : label.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        buf.writeInt(bytes.length);
-        buf.writeBytes(bytes);
+        NetworkBufferUtils.writeUtf8(buf, label);
     }
 
     public static class Handler implements IMessageHandler<LabelApplyPacket, IMessage> {
@@ -52,11 +51,14 @@ public class LabelApplyPacket implements IMessage {
         public IMessage onMessage(LabelApplyPacket msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             World world = player.worldObj;
+            if (player.getDistanceSq(msg.x + 0.5D, msg.y + 0.5D, msg.z + 0.5D) > 64.0D) {
+                return null;
+            }
             TileEntity te = world.getTileEntity(msg.x, msg.y, msg.z);
             if (te instanceof LabeledWirelessTransceiverBlockEntity) {
                 LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
-                if (lte.isLocked()) {
-                    player.addChatMessage(new net.minecraft.util.ChatComponentTranslation(
+                if (lte.isLocked() && !TransceiverSecurity.canManage(player, lte)) {
+                    player.addChatMessage(new ChatComponentTranslation(
                         "extendedae_plus.chat.wireless_transceiver.locked"));
                     return null;
                 }

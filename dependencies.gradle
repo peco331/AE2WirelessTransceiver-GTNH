@@ -1,6 +1,6 @@
 dependencies {
-    // AE2 GTNH fork (Applied-Energistics-2-Unofficial), version matching pack 2.9.0-beta1.
-    api("com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-977-GTNH") { artifact { classifier = "dev" } }
+    // AE2 GTNH fork (Applied-Energistics-2-Unofficial), version matching pack 2.9.0-beta2.
+    api("com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-1034-GTNH") { artifact { classifier = "dev" } }
     // GregTech 5 Unofficial, for GT wrench detection & crafting recipes.
     api("com.github.GTNewHorizons:GT5-Unofficial:5.09.52.594") { artifact { classifier = "dev" } }
     // GTNHLib modern JSON model system (blockbench models on 1.7.10).
