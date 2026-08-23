@@ -48,7 +48,3 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 
 LGPL-3.0。移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn，LGPL-3.0）。详细移植说明见 [docs/TECHNICAL.md](docs/TECHNICAL.md)。
 
-## 作者
-
-- [peco331](https://github.com/peco331)
-- DeepSeek AI — AI 编码辅助
