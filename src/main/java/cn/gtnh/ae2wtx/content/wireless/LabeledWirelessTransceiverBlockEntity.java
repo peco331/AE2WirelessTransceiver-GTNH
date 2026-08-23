@@ -239,30 +239,54 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         ((appeng.me.GridNode) b).setLastSecurityKey(key);
     }
 
+    private boolean chunkUnloading = false;
+
+    @Override
+    public void validate() {
+        super.validate();
+        this.chunkUnloading = false;
+        this.beingRemoved = false;
+    }
+
     @Override
     public void invalidate() {
         super.invalidate();
-        cleanupForRemoval();
+        if (!chunkUnloading) {
+            cleanup(true);
+        } else {
+            cleanup(false);
+        }
     }
 
     @Override
     public void onChunkUnload() {
+        this.chunkUnloading = true;
         super.onChunkUnload();
-        cleanupForRemoval();
+        cleanup(false);
     }
 
     public void cleanupForRemoval() {
+        cleanup(true);
+    }
+
+    public void cleanup(boolean unregisterEndpoint) {
         if (beingRemoved) {
             return;
         }
         beingRemoved = true;
         labelLink.onUnloadOrRemove();
-        LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
-        if (reg != null) {
-            reg.unregister(this);
+        if (unregisterEndpoint) {
+            LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
+            if (reg != null) {
+                reg.cleanupStalePendingClear(worldObj, xCoord, yCoord, zCoord);
+                reg.unregister(this);
+            }
         }
         if (node != null) {
-            node.destroy();
+            try {
+                node.destroy();
+            } catch (Exception ignored) {
+            }
             node = null;
         }
     }

@@ -418,8 +418,14 @@ public class LabelNetworkRegistry extends WorldSavedData {
             int total = 0;
             int online = 0;
             for (EndpointRef ref : endpoints) {
+                if (ref.dim == null) {
+                    continue;
+                }
                 World w = server.worldServerForDimension(ref.dim);
                 if (w == null) {
+                    continue;
+                }
+                if (!w.blockExists(ref.x, ref.y, ref.z)) {
                     continue;
                 }
                 TileEntity te = w.getTileEntity(ref.x, ref.y, ref.z);
