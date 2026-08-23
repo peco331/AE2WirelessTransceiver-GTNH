@@ -7,11 +7,16 @@ import cn.gtnh.ae2wtx.gui.ModGuiHandler;
 import cn.gtnh.ae2wtx.init.ModBlockEntities;
 import cn.gtnh.ae2wtx.init.ModBlocks;
 import cn.gtnh.ae2wtx.network.NetworkHandler;
+import cn.gtnh.ae2wtx.network.ServerTaskQueueTickHandler;
+import cn.gtnh.ae2wtx.compat.LockedTransceiverBreakHandler;
+import cn.gtnh.ae2wtx.wireless.RegistryLifecycleHandler;
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLInterModComms;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import gregtech.api.util.GTModHandler;
+import net.minecraftforge.common.MinecraftForge;
 
 public class CommonProxy {
 
@@ -26,8 +31,9 @@ public class CommonProxy {
     public void init(FMLInitializationEvent event) {
         FMLInterModComms.sendMessage("Waila", "register", "cn.gtnh.ae2wtx.compat.WailaProvider.callback");
         cn.gtnh.ae2wtx.compat.WrenchHandler.register();
-        // reload config values after in-game config screen edits
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(cn.gtnh.ae2wtx.config.ModConfig.class);
+        FMLCommonHandler.instance().bus().register(new ServerTaskQueueTickHandler());
+        MinecraftForge.EVENT_BUS.register(new LockedTransceiverBreakHandler());
+        MinecraftForge.EVENT_BUS.register(new RegistryLifecycleHandler());
     }
 
     public void postInit(FMLPostInitializationEvent event) {

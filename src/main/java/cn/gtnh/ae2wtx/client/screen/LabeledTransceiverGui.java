@@ -21,6 +21,7 @@ import cn.gtnh.ae2wtx.network.LabelDeletePacket;
 import cn.gtnh.ae2wtx.network.LabelListRequestPacket;
 import cn.gtnh.ae2wtx.network.LabelListResponsePacket;
 import cn.gtnh.ae2wtx.network.NetworkHandler;
+import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
 
 /**
  * Label management GUI for the labeled wireless transceiver, matching
@@ -46,13 +47,21 @@ public class LabeledTransceiverGui extends GuiContainer {
     private static final int SCROLL_W = 6;
     private static final int SCROLL_H = 121;
     private static final int INFO_MAX_WIDTH = 116;
+    /** Retry a dropped or throttled list request after two seconds. */
+    private static final int PAGE_REQUEST_TIMEOUT_TICKS = 40;
 
     private final EntityPlayer player;
+    private final LabeledContainer container;
+    private final int dimension;
     private final int x;
     private final int y;
     private final int z;
 
     private GuiTextField searchBox;
+    private GuiButton newButton;
+    private GuiButton deleteButton;
+    private GuiButton setButton;
+    private GuiButton disconnectButton;
     private final List<Entry> entries = new ArrayList<>();
     private final List<Entry> filtered = new ArrayList<>();
     private int scrollOffset = 0;
@@ -63,14 +72,39 @@ public class LabeledTransceiverGui extends GuiContainer {
     private String lastSelectedLabel = "";
     private String currentLabel = "";
     private String currentOwner = "";
+    private String inspectedLabel = "";
+    private boolean showingSelectedBand = false;
     private int onlineCount = 0;
+    private int endpointCount = 0;
     private int usedChannels = 0;
     private int maxChannels = 0;
     private int networkChannels = 0;
+    private int nextRequestId = 0;
+    private int latestRequestId = 0;
+    private int currentPage = 0;
+    private int pageSize = LabelListRequestPacket.DEFAULT_PAGE_SIZE;
+    private int totalEntries = 0;
+    private int pageCount = 1;
+    private int pendingSearchTicks = -1;
+    private boolean pageRequestInFlight = false;
+    private int pageRequestAge = 0;
+    private int activeRequestPage = 0;
+    private int activeRequestScrollOffset = 0;
+    private String activeRequestQuery = "";
+    private String activeRequestInspectLabel = "";
+    private boolean queuedPageRequest = false;
+    private int queuedRequestPage = 0;
+    private int queuedRequestScrollOffset = 0;
+    private String queuedRequestQuery = "";
+    private String queuedRequestInspectLabel = "";
+    /** initGui runs before vanilla assigns the server window id. */
+    private boolean initialRequestPending = true;
 
     public LabeledTransceiverGui(LabeledContainer container, EntityPlayer player, int x, int y, int z) {
         super(container);
         this.player = player;
+        this.container = container;
+        this.dimension = player.worldObj.provider.dimensionId;
         this.x = x;
         this.y = y;
         this.z = z;
@@ -99,12 +133,20 @@ public class LabeledTransceiverGui extends GuiContainer {
         int secondColX = startX + BTN_W + hGap;
         int secondRowY = startY + BTN_H + vGap;
 
-        buttonList.add(new IconButton(0, startX, startY, StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.new")));
-        buttonList.add(new IconButton(1, secondColX, startY, StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.delete")));
-        buttonList.add(new IconButton(2, startX, secondRowY, StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.set")));
-        buttonList.add(new IconButton(3, secondColX, secondRowY, StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.refresh")));
-
-        requestList();
+        newButton = new IconButton(0, startX, startY,
+            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.new"));
+        deleteButton = new IconButton(1, secondColX, startY,
+            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.delete"));
+        setButton = new IconButton(2, startX, secondRowY,
+            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.set"));
+        disconnectButton = new IconButton(3, secondColX, secondRowY,
+            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.refresh"));
+        buttonList.add(newButton);
+        buttonList.add(deleteButton);
+        buttonList.add(setButton);
+        buttonList.add(disconnectButton);
+        initialRequestPending = true;
+        updateActionButtons();
     }
 
     @Override
@@ -114,18 +156,40 @@ public class LabeledTransceiverGui extends GuiContainer {
     }
 
     public void updateList(List<LabelListResponsePacket.Entry> list, String currentLabel, String ownerName,
-        int usedChannels, int maxChannels, int onlineCount, int networkChannels) {
+        String inspectedLabel, int usedChannels, int maxChannels, int onlineCount, int endpointCount,
+        int networkChannels, int page, int responsePageSize, int responseTotalEntries, int responsePageCount) {
+        pageRequestInFlight = false;
+        pageRequestAge = 0;
+        // A newer scroll/search request arrived while this one was in flight.
+        // Its state is authoritative, so do not briefly render the older page.
+        if (queuedPageRequest) {
+            sendQueuedPageRequest();
+            return;
+        }
         String prevSelected = getSelectedLabel();
+        java.util.Set<String> prevSelectedLabels = new java.util.HashSet<>();
+        for (int index : selectedIndices) {
+            if (index >= 0 && index < filtered.size()) {
+                prevSelectedLabels.add(filtered.get(index).label);
+            }
+        }
         this.entries.clear();
         for (LabelListResponsePacket.Entry e : list) {
             this.entries.add(new Entry(e.label, e.channel));
         }
         this.currentLabel = currentLabel == null ? "" : currentLabel;
         this.currentOwner = ownerName == null ? "" : ownerName;
+        this.inspectedLabel = inspectedLabel == null ? "" : inspectedLabel;
+        this.showingSelectedBand = LabelNetworkRegistry.normalizeLabel(activeRequestInspectLabel) != null;
         this.onlineCount = onlineCount;
+        this.endpointCount = endpointCount;
         this.usedChannels = usedChannels;
         this.maxChannels = maxChannels;
         this.networkChannels = networkChannels;
+        this.currentPage = page;
+        this.pageSize = responsePageSize;
+        this.totalEntries = responseTotalEntries;
+        this.pageCount = responsePageCount;
         if (prevSelected != null && !prevSelected.isEmpty()) {
             this.lastSelectedLabel = prevSelected;
         } else if (this.currentLabel != null && !this.currentLabel.isEmpty()) {
@@ -134,22 +198,81 @@ public class LabeledTransceiverGui extends GuiContainer {
             this.lastSelectedLabel = "";
         }
         applyFilter();
+        for (int i = 0; i < filtered.size(); i++) {
+            if (prevSelectedLabels.contains(filtered.get(i).label)) {
+                selectedIndices.add(i);
+            }
+        }
+        int maxOffset = Math.max(0, filtered.size() - VISIBLE_ROWS);
+        this.scrollOffset = Math.max(0, Math.min(maxOffset, activeRequestScrollOffset));
+        this.activeRequestScrollOffset = 0;
     }
 
     /* ===================== actions ===================== */
 
     private void requestList() {
-        NetworkHandler.CHANNEL.sendToServer(new LabelListRequestPacket(x, y, z));
+        requestPage(0, 0);
+    }
+
+    private void requestPage(int page, int desiredScrollOffset) {
+        queuedRequestPage = Math.max(0, page);
+        queuedRequestScrollOffset = Math.max(0, desiredScrollOffset);
+        queuedRequestQuery = searchBox == null || searchBox.getText() == null ? "" : searchBox.getText();
+        queuedRequestInspectLabel = getSelectedLabel();
+        if (LabelNetworkRegistry.normalizeLabel(queuedRequestInspectLabel) == null) {
+            queuedRequestInspectLabel = lastSelectedLabel == null ? "" : lastSelectedLabel;
+        }
+        queuedPageRequest = true;
+        if (!pageRequestInFlight) {
+            sendQueuedPageRequest();
+        }
+    }
+
+    /** Keep one request in flight and coalesce rapid scrolling/searching to the newest desired page. */
+    private void sendQueuedPageRequest() {
+        if (!queuedPageRequest) {
+            return;
+        }
+        activeRequestPage = queuedRequestPage;
+        activeRequestScrollOffset = queuedRequestScrollOffset;
+        activeRequestQuery = queuedRequestQuery;
+        activeRequestInspectLabel = queuedRequestInspectLabel;
+        queuedPageRequest = false;
+        int requestId = ++nextRequestId;
+        latestRequestId = requestId;
+        pageRequestInFlight = true;
+        pageRequestAge = 0;
+        NetworkHandler.CHANNEL.sendToServer(
+            new LabelListRequestPacket(
+                dimension,
+                x,
+                y,
+                z,
+                container.windowId,
+                requestId,
+                activeRequestPage,
+                pageSize,
+                activeRequestQuery,
+                activeRequestInspectLabel));
+    }
+
+    /** Reject delayed responses belonging to another block, window, or request. */
+    public boolean acceptsResponse(int responseDimension, int responseX, int responseY, int responseZ,
+        int responseWindowId, int responseRequestId) {
+        return responseDimension == dimension && responseX == x && responseY == y && responseZ == z
+            && responseWindowId == container.windowId && responseRequestId == latestRequestId;
     }
 
     private void sendSet(String label) {
-        if (label == null) {
-            label = "";
+        String normalized = LabelNetworkRegistry.normalizeLabel(label);
+        if (normalized == null) {
+            return;
         }
-        NetworkHandler.CHANNEL.sendToServer(new LabelApplyPacket(x, y, z, label));
-        this.lastSelectedLabel = label;
+        NetworkHandler.CHANNEL
+            .sendToServer(new LabelApplyPacket(dimension, x, y, z, container.windowId, normalized));
+        this.lastSelectedLabel = normalized;
         this.searchBox.setText("");
-        requestList();
+        requestPage(0, 0);
     }
 
     /**
@@ -169,19 +292,20 @@ public class LabeledTransceiverGui extends GuiContainer {
                 labels.add(t);
             }
         }
-        for (String label : labels) {
-            NetworkHandler.CHANNEL.sendToServer(new LabelDeletePacket(label));
+        if (!labels.isEmpty()) {
+            NetworkHandler.CHANNEL
+                .sendToServer(new LabelDeletePacket(dimension, x, y, z, container.windowId, labels));
         }
         this.lastSelectedLabel = "";
         this.selectedIndices.clear();
         this.selectedIndex = -1;
-        requestList();
+        requestPage(currentPage, scrollOffset);
     }
 
     private void sendDisconnect() {
-        NetworkHandler.CHANNEL.sendToServer(new LabelApplyPacket(x, y, z, ""));
+        NetworkHandler.CHANNEL.sendToServer(new LabelApplyPacket(dimension, x, y, z, container.windowId, ""));
         this.lastSelectedLabel = "";
-        requestList();
+        requestPage(currentPage, scrollOffset);
     }
 
     private String getSelectedLabel() {
@@ -189,6 +313,16 @@ public class LabeledTransceiverGui extends GuiContainer {
             return filtered.get(selectedIndex).label;
         }
         return "";
+    }
+
+    private void clearSelectionAndRefresh() {
+        if (selectedIndex < 0 && selectedIndices.isEmpty()) {
+            return;
+        }
+        selectedIndex = -1;
+        selectedIndices.clear();
+        lastSelectedLabel = "";
+        requestPage(currentPage, scrollOffset);
     }
 
     @Override
@@ -215,11 +349,62 @@ public class LabeledTransceiverGui extends GuiContainer {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
+        String before = searchBox.getText();
         if (searchBox.textboxKeyTyped(typedChar, keyCode)) {
-            applyFilter();
+            if (!java.util.Objects.equals(before, searchBox.getText())) {
+                pendingSearchTicks = 5;
+            }
             return;
         }
         super.keyTyped(typedChar, keyCode);
+    }
+
+    @Override
+    public void updateScreen() {
+        super.updateScreen();
+        // NetHandlerPlayClient assigns the server window id only after
+        // displayGuiScreen/initGui returns. Sending in initGui therefore used
+        // window id 0 and the server correctly rejected the first list request.
+        if (initialRequestPending && container.windowId != 0) {
+            initialRequestPending = false;
+            requestList();
+        }
+        if (pendingSearchTicks > 0 && --pendingSearchTicks == 0) {
+            pendingSearchTicks = -1;
+            requestPage(0, 0);
+        }
+        if (pageRequestInFlight && ++pageRequestAge >= PAGE_REQUEST_TIMEOUT_TICKS) {
+            pageRequestInFlight = false;
+            pageRequestAge = 0;
+            if (!queuedPageRequest) {
+                queuedRequestPage = activeRequestPage;
+                queuedRequestScrollOffset = activeRequestScrollOffset;
+                queuedRequestQuery = activeRequestQuery;
+                queuedRequestInspectLabel = activeRequestInspectLabel;
+                queuedPageRequest = true;
+            }
+        }
+        if (!pageRequestInFlight && queuedPageRequest) {
+            sendQueuedPageRequest();
+        }
+        updateActionButtons();
+    }
+
+    private void updateActionButtons() {
+        boolean validSearch = searchBox != null && LabelNetworkRegistry.normalizeLabel(searchBox.getText()) != null;
+        boolean validSelection = LabelNetworkRegistry.normalizeLabel(getSelectedLabel()) != null;
+        if (newButton != null) {
+            newButton.enabled = validSearch;
+        }
+        if (setButton != null) {
+            setButton.enabled = validSelection;
+        }
+        if (deleteButton != null) {
+            deleteButton.enabled = validSearch || !selectedIndices.isEmpty();
+        }
+        if (disconnectButton != null) {
+            disconnectButton.enabled = LabelNetworkRegistry.normalizeLabel(currentLabel) != null;
+        }
     }
 
     @Override
@@ -245,9 +430,14 @@ public class LabeledTransceiverGui extends GuiContainer {
                 }
                 selectedIndex = idx;
                 lastSelectedLabel = filtered.get(idx).label;
+                requestPage(currentPage, scrollOffset);
+            } else {
+                clearSelectionAndRefresh();
             }
         } else if (isMouseInScrollbar(mouseX, mouseY)) {
             updateScrollByMouse(mouseY);
+        } else {
+            clearSelectionAndRefresh();
         }
     }
 
@@ -260,7 +450,17 @@ public class LabeledTransceiverGui extends GuiContainer {
             int my = this.height - org.lwjgl.input.Mouse.getEventY() * this.height / mc.displayHeight - 1;
             if (isMouseInList(mx, my) || isMouseInScrollbar(mx, my)) {
                 int maxOffset = Math.max(0, filtered.size() - VISIBLE_ROWS);
-                scrollOffset = Math.max(0, Math.min(maxOffset, scrollOffset + (wheel > 0 ? -1 : 1)));
+                if (wheel > 0) {
+                    if (scrollOffset > 0) {
+                        scrollOffset--;
+                    } else if (currentPage > 0) {
+                        requestPage(currentPage - 1, Math.max(0, pageSize - VISIBLE_ROWS));
+                    }
+                } else if (scrollOffset < maxOffset) {
+                    scrollOffset++;
+                } else if (currentPage + 1 < pageCount) {
+                    requestPage(currentPage + 1, 0);
+                }
             }
         }
     }
@@ -336,14 +536,20 @@ public class LabeledTransceiverGui extends GuiContainer {
         int infoX = guiLeft + 134;
         int infoY = guiTop + 41;
         float infoScale = getScale();
-        String labelLine = StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.current_label") + ": "
-            + (currentLabel.isEmpty() ? "-" : currentLabel);
+        String displayLabel = inspectedLabel.isEmpty() ? currentLabel : inspectedLabel;
+        String labelKey = showingSelectedBand ? "gui.ae2wtx.labeled_wireless.selected_label"
+            : "gui.extendedae_plus.labeled_wireless.current_label";
+        String labelLine = StatCollector.translateToLocal(labelKey) + ": "
+            + (displayLabel.isEmpty() ? "-" : displayLabel);
         String ownerLine = StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.current_owner") + ": "
             + (currentOwner.isEmpty() ? StatCollector.translateToLocal("extendedae_plus.jade.owner.public") : currentOwner);
         String onlineLine = StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.online_count") + ": " + onlineCount;
-        String channelLine = maxChannels <= 0
-            ? StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", usedChannels)
-            : StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of", usedChannels, maxChannels);
+        boolean inspectingOtherBand = showingSelectedBand && !displayLabel.equals(currentLabel);
+        String channelLine = inspectingOtherBand
+            ? StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.endpoint_count") + ": " + endpointCount
+            : maxChannels <= 0
+                ? StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", usedChannels)
+                : StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of", usedChannels, maxChannels);
         // whole-frequency (label) usage across ALL endpoints; denominator is the
         // real capacity granted by the ME network (32 dense, ∞ in infinite mode)
         boolean infinite = maxChannels <= 0 || maxChannels >= 1_000_000;
@@ -386,15 +592,16 @@ public class LabeledTransceiverGui extends GuiContainer {
     }
 
     private void renderScrollBar() {
-        int total = filtered.size();
+        int total = totalEntries;
         if (total <= VISIBLE_ROWS) {
             drawRect(guiLeft + SCROLL_X, guiTop + SCROLL_Y, guiLeft + SCROLL_X + SCROLL_W, guiTop + SCROLL_Y + SCROLL_H, 0x20000000);
             return;
         }
-        int maxOffset = total - VISIBLE_ROWS;
+        int maxOffset = Math.max(1, total - VISIBLE_ROWS);
         drawRect(guiLeft + SCROLL_X, guiTop + SCROLL_Y, guiLeft + SCROLL_X + SCROLL_W, guiTop + SCROLL_Y + SCROLL_H, 0x20000000);
         int knobH = Math.max(10, (int) ((double) VISIBLE_ROWS / total * SCROLL_H));
-        int knobY = guiTop + SCROLL_Y + (int) ((SCROLL_H - knobH) * (scrollOffset / (double) maxOffset));
+        int globalOffset = Math.min(maxOffset, currentPage * pageSize + scrollOffset);
+        int knobY = guiTop + SCROLL_Y + (int) ((SCROLL_H - knobH) * (globalOffset / (double) maxOffset));
         drawRect(guiLeft + SCROLL_X, knobY, guiLeft + SCROLL_X + SCROLL_W, knobY + knobH, 0x80FFFFFF);
     }
 
@@ -409,31 +616,34 @@ public class LabeledTransceiverGui extends GuiContainer {
     }
 
     private void updateScrollByMouse(int mouseY) {
-        int total = filtered.size();
+        int total = totalEntries;
         if (total <= VISIBLE_ROWS) {
             return;
         }
-        int maxOffset = total - VISIBLE_ROWS;
+        int maxOffset = Math.max(0, total - VISIBLE_ROWS);
         int relativeY = mouseY - (guiTop + SCROLL_Y);
         relativeY = Math.max(0, Math.min(SCROLL_H, relativeY));
         int knobH = Math.max(10, (int) ((double) VISIBLE_ROWS / total * SCROLL_H));
         double ratio = (relativeY - knobH / 2.0D) / (double) (SCROLL_H - knobH);
         ratio = Math.max(0.0D, Math.min(1.0D, ratio));
-        scrollOffset = (int) Math.round(ratio * maxOffset);
+        int globalOffset = (int) Math.round(ratio * maxOffset);
+        // A page only has (pageSize - visibleRows) valid first-row offsets.
+        // Map the otherwise unreachable gap at each page boundary to the next
+        // page, so a short final page (for example item 65 of 65) remains
+        // reachable by dragging the scrollbar all the way down.
+        int safePageSize = Math.max(1, pageSize);
+        int requestedPage = Math.min(pageCount - 1, (globalOffset + VISIBLE_ROWS - 1) / safePageSize);
+        int requestedLocalOffset = Math.max(0, globalOffset - requestedPage * safePageSize);
+        if (requestedPage == currentPage) {
+            scrollOffset = Math.max(0, Math.min(Math.max(0, filtered.size() - VISIBLE_ROWS), requestedLocalOffset));
+        } else {
+            requestPage(requestedPage, requestedLocalOffset);
+        }
     }
 
     private void applyFilter() {
-        String q = searchBox.getText() == null ? "" : searchBox.getText().trim();
         filtered.clear();
-        if (q.isEmpty()) {
-            filtered.addAll(entries);
-        } else {
-            for (Entry e : entries) {
-                if (e.label.contains(q)) {
-                    filtered.add(e);
-                }
-            }
-        }
+        filtered.addAll(entries);
         scrollOffset = 0;
         selectedIndex = -1;
         selectedIndices.clear();

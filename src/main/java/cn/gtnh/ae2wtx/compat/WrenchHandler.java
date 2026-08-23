@@ -11,12 +11,15 @@ import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
+import cn.gtnh.ae2wtx.content.wireless.TransceiverSecurity;
+import cpw.mods.fml.common.eventhandler.Event;
+import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.oredict.OreDictionary;
-
-import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
 
 /**
  * Wrench interactions for the wireless transceiver (1.7.10 port of
@@ -67,9 +70,10 @@ public class WrenchHandler {
         return isGTWrench(stack) || isAE2Wrench(stack);
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.entityPlayer == null || event.world == null) {
+        if (event.entityPlayer == null || event.world == null || event.isCanceled()
+            || event.useBlock == Event.Result.DENY) {
             return;
         }
         EntityPlayer player = event.entityPlayer;
@@ -93,15 +97,15 @@ public class WrenchHandler {
             LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
             if (player.isSneaking()) {
                 // sneak + right: disassemble (AE2-style ground drop)
-                if (lte.isLocked() && !cn.gtnh.ae2wtx.content.wireless.TransceiverSecurity.canManage(player, lte)) {
+                if (lte.isLocked() && !TransceiverSecurity.canManage(player, lte)) {
                     player.addChatMessage(new ChatComponentTranslation(
                         "extendedae_plus.chat.wireless_transceiver.locked"));
                     return;
                 }
-                disassemble(event.world, event.x, event.y, event.z);
+                disassemble(event.world, event.x, event.y, event.z, player);
             } else {
                 // right (not sneaking): toggle lock
-                if (lte.isLocked() && !cn.gtnh.ae2wtx.content.wireless.TransceiverSecurity.canManage(player, lte)) {
+                if (lte.isLocked() && !TransceiverSecurity.canManage(player, lte)) {
                     player.addChatMessage(new ChatComponentTranslation(
                         "extendedae_plus.chat.wireless_transceiver.locked"));
                     return;
@@ -118,9 +122,23 @@ public class WrenchHandler {
     }
 
     /** AE2 vanilla-style disassembly: drop the block item as an entity, remove the block. */
-    private static void disassemble(World world, int x, int y, int z) {
+    private static boolean disassemble(World world, int x, int y, int z, EntityPlayer player) {
         net.minecraft.block.Block block = world.getBlock(x, y, z);
+        int metadata = world.getBlockMetadata(x, y, z);
+        BlockEvent.BreakEvent breakEvent = new BlockEvent.BreakEvent(x, y, z, world, block, metadata, player);
+        if (MinecraftForge.EVENT_BUS.post(breakEvent)) {
+            return false;
+        }
+        // Event handlers are allowed to mutate the world. Re-check the target
+        // before removing it, and never spawn the item until removal succeeds.
+        if (world.getBlock(x, y, z) != block
+            || !(world.getTileEntity(x, y, z) instanceof LabeledWirelessTransceiverBlockEntity)) {
+            return false;
+        }
         ItemStack drop = new ItemStack(block);
+        if (!world.setBlockToAir(x, y, z)) {
+            return false;
+        }
         float f = 0.7F;
         double dx = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
         double dy = world.rand.nextFloat() * f + (1.0F - f) * 0.5D;
@@ -129,6 +147,6 @@ public class WrenchHandler {
         ei.delayBeforeCanPickup = 10;
         world.spawnEntityInWorld(ei);
         world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
-        world.setBlockToAir(x, y, z);
+        return true;
     }
 }
