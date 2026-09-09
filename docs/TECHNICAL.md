@@ -137,7 +137,7 @@ cn.gtnh.ae2wtx
   - 资源：`assets/ae2wtx/blockstates/labeled_wireless_transceiver.json`（variants: meta=0/1）+ `models/blocks/lable_off.json`（channel0 状态）/ `lable_on.json`（channel5 状态 + 发光核心元素）
   - 客户端 init 仅在检测到 `gtnhlib` 后以反射探测 `ModelRegistry.registerModid(String)` 与 `ModelISBRH.JSON_ISBRH_ID`；成功后启用 JSON render type，避免专服或无库客户端产生类链接错误
   - 缺少 GTNHLib 或 API 不匹配时，`getRenderType()` 保持为原版 standard block render type `0`，使用 `registerBlockIcons/getIcon` 已注册的 off/on 贴图渲染完整立方体；核心逻辑、频道状态和发光等级不受影响
-  - **纹理路径陷阱**：gtnhlib 的模型纹理从 **`textures/blocks/`（1.7.10 复数）** 加载（TEXEX 正则 `^([^:]+:)blocks?/` 剥离模型引用中的 `block/` 前缀），不是 1.8 的 `textures/block/`
+  - **纹理路径陷阱**：beta3 的 `GTNHLib 0.11.46` 按现代路径直接读取模型纹理，不再自动补 `textures/blocks/`；资源位于 `textures/blocks/` 时，模型引用必须显式写成 `ae2wtx:blocks/...`。旧的 `block/` 或省略 `blocks/` 都会导致紫黑缺失贴图。
   - **动画**：on 模型发光核心引用 lighting 帧条（16x432 + mcmeta frametime 2），gtnhlib `AnimatedTexture` 自动播放（呼吸发光）；off 模型隐藏核心用透明贴图（避免 z-fighting 闪烁）
   - 渲染性能：gtnhlib 自带模型缓存（BLOCKSTATE_MODEL_CACHE/JSON_MODEL_CACHE），烘焙一次性、渲染走 DirectTessellator/CEL；纹理仅 128x，影响可忽略
 - 自发光：`getLightValue(IBlockAccess,...)` 在线 15/15，离线 0；状态翻转时 `updateLightByType` 重算
