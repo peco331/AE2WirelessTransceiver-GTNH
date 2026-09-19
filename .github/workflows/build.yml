@@ -31,9 +31,19 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Determine build version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-ci" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build
         env:
-          VERSION: 0.0.0-ci
+          VERSION: ${{ steps.version.outputs.version }}
         run: ./gradlew clean build --no-daemon
 
       - name: Verify Java 8 class-file target
