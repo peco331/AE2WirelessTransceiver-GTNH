@@ -158,6 +158,10 @@ public class LabelListRequestPacket implements IMessage {
             LabelNetworkRegistry.LabelNetwork net = inspectedLabel == null
                 ? null
                 : reg.getNetwork(world, inspectedLabel, lte.getPlacerId());
+            // Every transceiver and virtual band node advertises DENSE_CAPACITY.
+            // Capacity is therefore band-independent: 32 while AE2 channels are
+            // enabled, or unlimited when the global channel feature is disabled.
+            // Only demand and endpoint statistics need to come from the selected band.
             maxChannels = lte.getMaxChannelsForDisplay();
             usedChannels = lte.getUsedChannelsForDisplay();
             if (net != null) {
