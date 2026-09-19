@@ -18,13 +18,13 @@
 
 ```bash
 # Linux/macOS：JDK 25 + Jabel，输出仍为 Java 8 字节码
-VERSION=1.0.6 ./gradlew clean build
-# 产物：build/libs/ae2wtx-1.0.6.jar
+VERSION=1.1.0 ./gradlew clean build
+# 产物：build/libs/ae2wtx-1.1.0.jar
 ```
 
 ```powershell
 # Windows PowerShell
-$env:VERSION = "1.0.6"
+$env:VERSION = "1.1.0"
 .\gradlew.bat clean build
 ```
 
