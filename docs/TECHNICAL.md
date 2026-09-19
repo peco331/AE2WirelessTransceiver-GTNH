@@ -2,6 +2,8 @@
 
 面向开发者的详细文档：移植来源、GTNH/rv3 适配细节、架构、性能与已知限制。
 
+当前适配目标为 GTNH 2.9.0-beta3（Minecraft 1.7.10）；GTNH 2.9.0-beta2 只保留为历史兼容背景，不再作为当前开发主线。
+
 ## 1. 移植来源与许可
 
 - 移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn，**LGPL-3.0**），本项目同样以 LGPL-3.0 发布（见根目录 [LICENSE](../LICENSE)）
@@ -29,9 +31,9 @@ $env:VERSION = "1.0.6"
 - Wrapper 下载包固定 SHA-256；构建使用 JDK 25，Jabel 生成 Java 8（class major `52`）字节码
 - GitHub Actions 执行同一 `clean build` 并扫描产物中的 class major；这属于构建期检查，不替代真实 GTNH 客户端/专服烟雾测试
 - Mixin 基础设施启用（`usesMixins=true`），注册 `MixinToolNetworkVisualiser` 拦截网络可视化数据包
-- 必需依赖：`Applied-Energistics-2-Unofficial:rv3-beta-1034-GTNH`（匹配 GTNH 2.9.0-beta2 整合包实际版本）、`GT5-Unofficial:5.09.52.594`
-- GTNHLib 是可选的增强渲染集成：构建脚本仅把整合包版本 `0.11.24` 放入开发运行环境；发布 MOD 不声明最低版本，也不包含对其类的硬链接。缺失或模型 API 不兼容时使用原版立方体渲染
-- Waila `1.19.29` 仅以 `compileOnly` 编译可选兼容，不会被打包或声明为运行时必需依赖
+- 必需依赖：`Applied-Energistics-2-Unofficial:rv3-beta-1050-GTNH`（匹配 GTNH 2.9.0-beta3 目标运行时）、`GT5-Unofficial:5.09.54.133`
+- GTNHLib 是可选的增强渲染集成：构建脚本把目标版本 `0.11.46` 放入开发运行环境；发布 MOD 不声明最低版本，也不包含对其类的硬链接。缺失或模型 API 不兼容时使用原版立方体渲染
+- Waila `1.19.34` 仅以 `compileOnly` 编译可选兼容，不会被打包或声明为运行时必需依赖
 - `processResources` 将根目录 `LICENSE` 与 `THIRD_PARTY_NOTICES.md` 收入发布 JAR 的 `META-INF/`
 
 ## 3. GTNH/rv3 适配要点（踩坑记录）
@@ -148,7 +150,7 @@ cn.gtnh.ae2wtx
 - **channel 0-5 全部六态**未复刻（本 mod 方块仅 off/on 两态，off=channel0 外观 / on=channel5 外观；频道实时信息由 Waila/GUI 呈现）
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
 - 玩家可见频道数采用实际导线拓扑上的需求口径；它有意显示需求而非已分配数，以便超载时仍显示 `33/32`
-- CI 只覆盖编译、静态检查与 Java 8 字节码检查；发布前仍需在目标 GTNH 版本执行客户端和专用服务器烟雾测试
+- CI 只覆盖编译、静态检查与 Java 8 字节码检查；beta3 发布前仍需在目标 GTNH 版本执行客户端和专用服务器烟雾测试
 - 早期手写 `ISimpleBlockRenderingHandler` 方案已废弃（缺面/透明/物品栏异常）；兼容 GTNHLib 时由其官方模型系统承担增强渲染，无库时使用稳定的原版立方体回退
 
 ## 7. 交互决策记录
