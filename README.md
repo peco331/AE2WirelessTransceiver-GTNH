@@ -1,8 +1,13 @@
 # AE2 Wireless Transceiver (GTNH)
 
-将 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 的无线收发器移植到 **GTNH 2.9.0-beta2**（MC 1.7.10）。
+将 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus) 的无线收发器移植到 **GTNH 2.9.0-beta3**（MC 1.7.10）。
 
 A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
+
+## 当前状态
+
+- 当前开发目标：GTNH 2.9.0-beta3（Minecraft 1.7.10）；beta2 仅作为历史适配阶段，不再作为当前主线。
+- 当前活动分支：`beta3-gtnhlib-0.11.46-texture-fix`。GTNHLib 0.11.46 的模型纹理路径修复已完成；beta3 候选已通过 GitHub Actions 的自动化测试、构建、Java 8 字节码与 JAR 静态检查。工程验收不把 Minecraft 客户端或专用服务器烟雾测试作为发布阻塞。
 
 [下载最新版本](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) · [详细更新日志](CHANGELOG.md) · [技术文档](docs/TECHNICAL.md)
 
@@ -40,9 +45,9 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 
 ## 兼容性
 
-- 测试版本：GTNH 2.9.0-beta2
-- 必需依赖：AE2（Applied-Energistics-2-Unofficial `rv3-beta-1034-GTNH`）、GT5-Unofficial `5.09.52.594`
-- 可选依赖：GTNHLib（整合包自带的 `0.11.24` 已验证；未安装或模型 API 不兼容时自动使用原版立方体渲染）、Waila `1.19.29`（未安装时仅不显示 Waila 信息）
+- 当前目标版本：GTNH 2.9.0-beta3
+- 必需依赖：AE2（Applied-Energistics-2-Unofficial `rv3-beta-1050-GTNH`）、GT5-Unofficial `5.09.54.133`
+- 可选依赖：GTNHLib `0.11.46`（模型 API 不兼容时自动使用原版立方体渲染）、Waila `1.19.34`（未安装时仅不显示 Waila 信息）
 - 支持环境：客户端、单人游戏、专用服务器（Dedicated Server）
 - 语言：简体中文 / 繁體中文 / English
 
@@ -54,4 +59,3 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 ## 许可
 
 LGPL-3.0。移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（作者 GaLicn，LGPL-3.0）。发布 JAR 在 `META-INF` 中附带本项目许可证和第三方归属说明；详细移植说明见 [docs/TECHNICAL.md](docs/TECHNICAL.md)。
-
