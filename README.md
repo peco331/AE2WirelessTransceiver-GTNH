@@ -7,7 +7,7 @@ A GTNH 1.7.10 port of the ExtendedAE_Plus wireless transceiver.
 ## 当前状态
 
 - 当前开发目标：GTNH 2.9.0-beta3（Minecraft 1.7.10）；beta2 仅作为历史适配阶段，不再作为当前主线。
-- 当前活动分支：`beta3-gtnhlib-0.11.46-texture-fix`。GTNHLib 0.11.46 的模型纹理路径修复已完成；仍需在依赖可访问的环境中完成构建验证，并进行目标 beta3 客户端与专用服务器烟雾测试。
+- 当前活动分支：`beta3-gtnhlib-0.11.46-texture-fix`。GTNHLib 0.11.46 的模型纹理路径修复已完成；beta3 候选已通过 GitHub Actions 的自动化测试、构建、Java 8 字节码与 JAR 静态检查。工程验收不把 Minecraft 客户端或专用服务器烟雾测试作为发布阻塞。
 
 [下载最新版本](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) · [详细更新日志](CHANGELOG.md) · [技术文档](docs/TECHNICAL.md)
 
