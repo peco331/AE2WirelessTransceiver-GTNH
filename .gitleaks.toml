@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+condition = 'AND'
+description = 'Gradle generated Java class name, not a credential'
+paths = ['''(^|/)gradle\.properties$''']
+regexTarget = 'match'
+regexes = ['''generateGradleTokenClass\s*=\s*cn\.gtnh\.ae2wtx\.Tags\b''']
