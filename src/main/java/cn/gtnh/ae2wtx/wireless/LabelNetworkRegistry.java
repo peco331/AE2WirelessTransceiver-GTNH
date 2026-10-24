@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -429,10 +430,10 @@ public class LabelNetworkRegistry extends WorldSavedData {
         String rawQuery,
         int requestedPage,
         int requestedPageSize) {
-        String query = rawQuery == null ? "" : rawQuery.trim();
+        String query = rawQuery == null ? "" : rawQuery.trim().toLowerCase(Locale.ROOT);
         List<Snapshot> all = listNetworks(world, placerId);
         if (!query.isEmpty()) {
-            all.removeIf(snapshot -> !snapshot.label.contains(query));
+            all.removeIf(snapshot -> !snapshot.label.toLowerCase(Locale.ROOT).contains(query));
         }
         int pageSize = Math.max(1, Math.min(MAX_PAGE_SIZE, requestedPageSize));
         int total = all.size();

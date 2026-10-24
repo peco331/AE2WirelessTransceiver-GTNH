@@ -51,11 +51,13 @@ public class ModConfig {
             Property propCrossDim = config.get("wireless", "wirelessCrossDimEnable", true,
                 "Allow wireless transceivers to bridge channels across dimensions. (Requires full game/server restart)");
             propCrossDim.setRequiresMcRestart(true);
+            propCrossDim.setLanguageKey("ae2wtx.config.wirelessCrossDimEnable");
             boolean newCrossDim = propCrossDim.getBoolean(true);
 
             Property propIdlePower = config.get("wireless", "wirelessTransceiverIdlePower", 10.0,
                 "Idle AE power usage per tick of the transceiver grid node (AE/t).");
             propIdlePower.setMinValue(0.0D);
+            propIdlePower.setLanguageKey("ae2wtx.config.wirelessTransceiverIdlePower");
             double newIdlePower = propIdlePower.getDouble(10.0D);
             if (!Double.isFinite(newIdlePower) || newIdlePower < 0.0D) {
                 AE2Wtx.LOG.warn(
@@ -101,6 +103,7 @@ public class ModConfig {
         Property property = config.get("wireless", key, defaultValue, comment);
         property.setMinValue(0);
         property.setMaxValue(maxValue);
+        property.setLanguageKey("ae2wtx.config." + key);
 
         String rawText = property.getString().trim();
         BigInteger rawValue;

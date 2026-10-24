@@ -51,6 +51,10 @@ public class LabeledTransceiverGui extends GuiContainer {
     private static final int INFO_MAX_WIDTH = 116;
     /** Retry a dropped or throttled list request after two seconds. */
     private static final int PAGE_REQUEST_TIMEOUT_TICKS = 40;
+    /** Re-request the open page so online/channel figures stay live. */
+    private static final int AUTO_REFRESH_TICKS = 40;
+    /** A first Delete click arms it; a second click within this window deletes. */
+    private static final int DELETE_CONFIRM_TICKS = 60;
 
     private final EntityPlayer player;
     private final LabeledContainer container;
@@ -101,6 +105,9 @@ public class LabeledTransceiverGui extends GuiContainer {
     private String queuedRequestInspectLabel = "";
     /** initGui runs before vanilla assigns the server window id. */
     private boolean initialRequestPending = true;
+    private int autoRefreshAge = 0;
+    private int deleteArmedTicks = 0;
+    private java.util.Set<String> deleteArmedLabels = java.util.Collections.emptySet();
 
     public LabeledTransceiverGui(LabeledContainer container, EntityPlayer player, int x, int y, int z) {
         super(container);
@@ -278,26 +285,23 @@ public class LabeledTransceiverGui extends GuiContainer {
     }
 
     /**
-     * Delete every selected band (multi-select: click rows to toggle), or the
-     * search-box text as a fallback when nothing is selected.
+     * Delete every selected band (multi-select: ctrl+click rows). Deleting is
+     * irreversible for every transceiver on the band, so the first click only
+     * arms the button and a second click on the same selection confirms.
      */
     private void sendDelete() {
-        java.util.List<String> labels = new ArrayList<>();
-        for (int idx : selectedIndices) {
-            if (idx >= 0 && idx < filtered.size()) {
-                labels.add(filtered.get(idx).label);
-            }
-        }
+        java.util.Set<String> labels = getSelectedLabels();
         if (labels.isEmpty()) {
-            String t = searchBox.getText();
-            if (t != null && !t.isEmpty()) {
-                labels.add(t);
-            }
+            return;
         }
-        if (!labels.isEmpty()) {
-            NetworkHandler.CHANNEL
-                .sendToServer(new LabelDeletePacket(dimension, x, y, z, container.windowId, labels));
+        if (!isDeleteArmed() || !labels.equals(deleteArmedLabels)) {
+            deleteArmedTicks = DELETE_CONFIRM_TICKS;
+            deleteArmedLabels = labels;
+            return;
         }
+        disarmDelete();
+        NetworkHandler.CHANNEL
+            .sendToServer(new LabelDeletePacket(dimension, x, y, z, container.windowId, new ArrayList<>(labels)));
         this.lastSelectedLabel = "";
         this.selectedIndices.clear();
         this.selectedIndex = -1;
@@ -308,6 +312,25 @@ public class LabeledTransceiverGui extends GuiContainer {
         NetworkHandler.CHANNEL.sendToServer(new LabelApplyPacket(dimension, x, y, z, container.windowId, ""));
         this.lastSelectedLabel = "";
         requestPage(currentPage, scrollOffset);
+    }
+
+    private java.util.Set<String> getSelectedLabels() {
+        java.util.Set<String> labels = new java.util.LinkedHashSet<>();
+        for (int idx : selectedIndices) {
+            if (idx >= 0 && idx < filtered.size()) {
+                labels.add(filtered.get(idx).label);
+            }
+        }
+        return labels;
+    }
+
+    private boolean isDeleteArmed() {
+        return deleteArmedTicks > 0;
+    }
+
+    private void disarmDelete() {
+        deleteArmedTicks = 0;
+        deleteArmedLabels = java.util.Collections.emptySet();
     }
 
     private String getSelectedLabel() {
@@ -389,6 +412,15 @@ public class LabeledTransceiverGui extends GuiContainer {
         if (!pageRequestInFlight && queuedPageRequest) {
             sendQueuedPageRequest();
         }
+        if (pageRequestInFlight || pendingSearchTicks > 0) {
+            autoRefreshAge = 0;
+        } else if (!initialRequestPending && ++autoRefreshAge >= AUTO_REFRESH_TICKS) {
+            autoRefreshAge = 0;
+            requestPage(currentPage, scrollOffset);
+        }
+        if (isDeleteArmed() && (--deleteArmedTicks == 0 || !getSelectedLabels().equals(deleteArmedLabels))) {
+            disarmDelete();
+        }
         updateActionButtons();
     }
 
@@ -402,7 +434,7 @@ public class LabeledTransceiverGui extends GuiContainer {
             setButton.enabled = validSelection;
         }
         if (deleteButton != null) {
-            deleteButton.enabled = validSearch || !selectedIndices.isEmpty();
+            deleteButton.enabled = !selectedIndices.isEmpty();
         }
         if (disconnectButton != null) {
             disconnectButton.enabled = LabelNetworkRegistry.normalizeLabel(currentLabel) != null;
@@ -438,7 +470,9 @@ public class LabeledTransceiverGui extends GuiContainer {
             }
         } else if (isMouseInScrollbar(mouseX, mouseY)) {
             updateScrollByMouse(mouseY);
-        } else {
+        } else if (!isMouseOverButton(mouseX, mouseY)) {
+            // Buttons act on the selection; clicking one (even a disabled
+            // one) must not clear it, or Delete could never be confirmed.
             clearSelectionAndRefresh();
         }
     }
@@ -518,17 +552,27 @@ public class LabeledTransceiverGui extends GuiContainer {
         int vGap = 8;
         int secondColX = startX + BTN_W + hGap;
         int secondRowY = startY + BTN_H + vGap;
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.new"), startX, startY);
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.delete"), secondColX, startY);
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.set"), startX, secondRowY);
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.refresh"), secondColX, secondRowY);
+        String deleteKey = isDeleteArmed() ? "gui.ae2wtx.labeled_wireless.button.confirm_delete"
+            : "gui.extendedae_plus.labeled_wireless.button.delete";
+        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.new"), startX, startY,
+            buttonTextColor(newButton));
+        drawButtonText(StatCollector.translateToLocal(deleteKey), secondColX, startY,
+            deleteButton.enabled && isDeleteArmed() ? 0xFF6060 : buttonTextColor(deleteButton));
+        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.set"), startX, secondRowY,
+            buttonTextColor(setButton));
+        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.refresh"), secondColX,
+            secondRowY, buttonTextColor(disconnectButton));
     }
 
-    private void drawButtonText(String text, int x, int y) {
+    private static int buttonTextColor(GuiButton button) {
+        return button.enabled ? 0xFFFFFF : 0xA0A0A0;
+    }
+
+    private void drawButtonText(String text, int x, int y, int color) {
         String s = fontRendererObj.trimStringToWidth(text, BTN_W - 4);
         int tx = x + (BTN_W - fontRendererObj.getStringWidth(s)) / 2;
         int ty = y + (BTN_H - fontRendererObj.FONT_HEIGHT) / 2 + 1;
-        fontRendererObj.drawString(s, tx, ty, 0xFFFFFF);
+        fontRendererObj.drawString(s, tx, ty, color);
     }
 
     private void renderList() {
@@ -543,9 +587,15 @@ public class LabeledTransceiverGui extends GuiContainer {
             if (selectedIndices.contains(idx)) {
                 drawRect(baseX, y, baseX + LIST_W, y + ROW_H, 0x60FFFFFF);
             }
-            String text = fontRendererObj.trimStringToWidth(filtered.get(idx).label, LIST_W - 2);
+            String label = filtered.get(idx).label;
+            boolean current = label.equals(currentLabel);
+            if (current) {
+                // marker bar for the band this transceiver is on
+                drawRect(baseX, y + 1, baseX + 2, y + ROW_H - 1, 0xFF2E7D32);
+            }
+            String text = fontRendererObj.trimStringToWidth(label, LIST_W - 5);
             int ty = y + (ROW_H - fontRendererObj.FONT_HEIGHT) / 2;
-            fontRendererObj.drawString(text, baseX + 2, ty, 0x404040);
+            fontRendererObj.drawString(text, baseX + 4, ty, current ? 0x1B5E20 : 0x404040);
         }
 
         // info panel
@@ -624,6 +674,17 @@ public class LabeledTransceiverGui extends GuiContainer {
     private boolean isMouseInList(int mouseX, int mouseY) {
         return mouseX >= guiLeft + LIST_X && mouseX < guiLeft + LIST_X + LIST_W
             && mouseY >= guiTop + LIST_Y && mouseY < guiTop + LIST_Y + LIST_H;
+    }
+
+    private boolean isMouseOverButton(int mouseX, int mouseY) {
+        for (Object o : buttonList) {
+            GuiButton b = (GuiButton) o;
+            if (b.visible && mouseX >= b.xPosition && mouseY >= b.yPosition && mouseX < b.xPosition + b.width
+                && mouseY < b.yPosition + b.height) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isMouseInScrollbar(int mouseX, int mouseY) {
@@ -707,7 +768,7 @@ public class LabeledTransceiverGui extends GuiContainer {
         }
     }
 
-    /** Icon button drawn from the GUI texture sheet (2,159 base / 2,177 hover / 2,195 pressed). */
+    /** Icon button drawn from the GUI texture sheet (2,159 base / 2,177 hover / 2,195 disabled). */
     private static class IconButton extends GuiButton {
 
         IconButton(int id, int x, int y, String text) {
@@ -722,7 +783,9 @@ public class LabeledTransceiverGui extends GuiContainer {
             boolean hovered = mouseX >= xPosition && mouseY >= yPosition && mouseX < xPosition + width
                 && mouseY < yPosition + height;
             int v = BTN_V;
-            if (hovered) {
+            if (!enabled) {
+                v = 195;
+            } else if (hovered) {
                 v = 177;
             }
             TextureManager tm = mc.getTextureManager();

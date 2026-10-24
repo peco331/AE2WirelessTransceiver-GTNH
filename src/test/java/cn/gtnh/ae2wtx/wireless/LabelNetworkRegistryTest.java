@@ -70,6 +70,8 @@ public class LabelNetworkRegistryTest {
             assertEquals(22, largest.entries.size());
             assertEquals(2, largest.pageCount);
 
+            assertEquals(150, registry.listNetworks(null, OWNER, " BAND_ ", 0, 64).totalEntries);
+
             LabelNetworkRegistry.PagedSnapshots empty = registry.listNetworks(null, OWNER, "not-present", 99, 64);
             assertEquals(0, empty.page);
             assertEquals(0, empty.totalEntries);
