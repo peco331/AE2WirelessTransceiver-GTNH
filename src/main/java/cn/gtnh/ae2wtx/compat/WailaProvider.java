@@ -40,14 +40,14 @@ public class WailaProvider implements IWailaDataProvider {
         if (te instanceof LabeledWirelessTransceiverBlockEntity) {
             LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
             String label = lte.getLabelForDisplay();
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.frequency",
+            currenttip.add(StatCollector.translateToLocalFormatted("ae2wtx.waila.frequency",
                 label == null || label.isEmpty() ? "-" : label));
             java.util.UUID owner = lte.getPlacerId();
             if (owner == null) {
-                currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.owner.public"));
+                currenttip.add(StatCollector.translateToLocal("ae2wtx.waila.owner.public"));
             } else {
                 String name = lte.getPlacerName();
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.owner",
+                currenttip.add(StatCollector.translateToLocalFormatted("ae2wtx.waila.owner",
                     name != null ? name : owner.toString().substring(0, 8)));
             }
             // channels used by THIS transceiver (denominator = capacity the ME
@@ -55,10 +55,10 @@ public class WailaProvider implements IWailaDataProvider {
             int used = lte.getUsedChannelsForDisplay();
             int max = lte.getMaxChannelsForDisplay();
             if (max <= 0 || max >= 1_000_000) {
-                currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", used));
+                currenttip.add(StatCollector.translateToLocalFormatted("ae2wtx.waila.channels", used));
             } else {
                 currenttip.add(StatCollector.translateToLocalFormatted(
-                    "extendedae_plus.jade.channels_of",
+                    "ae2wtx.waila.channels_of",
                     ChannelDisplayFormatter.colorizeUsed(used, max),
                     max));
             }
@@ -66,13 +66,13 @@ public class WailaProvider implements IWailaDataProvider {
             // matches the GUI "本频段频道 x/y"; over capacity -> red, full -> yellow
             int net = lte.getNetworkChannelsForDisplay();
             String netVal = ChannelDisplayFormatter.formatBand(net, max);
-            currenttip.add(StatCollector.translateToLocal("extendedae_plus.jade.channels_network_label") + netVal);
+            currenttip.add(StatCollector.translateToLocal("ae2wtx.waila.channels_network_label") + netVal);
             // transceivers online in this band
-            currenttip.add(StatCollector.translateToLocalFormatted("extendedae_plus.jade.band_online",
+            currenttip.add(StatCollector.translateToLocalFormatted("ae2wtx.waila.band_online",
                 lte.getOnlineCountForDisplay()));
             currenttip.add(StatCollector.translateToLocal(
-                lte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
-                    : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
+                lte.isLocked() ? "ae2wtx.chat.transceiver.locked_status"
+                    : "ae2wtx.chat.transceiver.unlocked_status"));
             TransceiverStatus status = lte.getStatusForDisplay();
             currenttip.add(StatCollector.translateToLocal("ae2wtx.status.label")
                 + statusColor(status) + StatCollector.translateToLocal(status.langKey()));

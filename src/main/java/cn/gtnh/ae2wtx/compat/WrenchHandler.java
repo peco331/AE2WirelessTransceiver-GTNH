@@ -99,7 +99,7 @@ public class WrenchHandler {
                 // sneak + right: disassemble (AE2-style ground drop)
                 if (lte.isLocked() && !TransceiverSecurity.canManage(player, lte)) {
                     player.addChatMessage(new ChatComponentTranslation(
-                        "extendedae_plus.chat.wireless_transceiver.locked"));
+                        "ae2wtx.chat.transceiver.locked"));
                     return;
                 }
                 disassemble(event.world, event.x, event.y, event.z, player);
@@ -107,7 +107,7 @@ public class WrenchHandler {
                 // right (not sneaking): toggle lock
                 if (lte.isLocked() && !TransceiverSecurity.canManage(player, lte)) {
                     player.addChatMessage(new ChatComponentTranslation(
-                        "extendedae_plus.chat.wireless_transceiver.locked"));
+                        "ae2wtx.chat.transceiver.locked"));
                     return;
                 }
                 boolean newLocked = !lte.isLocked();
@@ -115,8 +115,8 @@ public class WrenchHandler {
                 event.world.playSoundEffect(event.x + 0.5D, event.y + 0.5D, event.z + 0.5D,
                     "random.lever", 0.5F, newLocked ? 0.6F : 0.9F);
                 player.addChatMessage(new ChatComponentTranslation(
-                    newLocked ? "extendedae_plus.chat.wireless_transceiver.locked_status"
-                        : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
+                    newLocked ? "ae2wtx.chat.transceiver.locked_status"
+                        : "ae2wtx.chat.transceiver.unlocked_status"));
             }
         }
     }

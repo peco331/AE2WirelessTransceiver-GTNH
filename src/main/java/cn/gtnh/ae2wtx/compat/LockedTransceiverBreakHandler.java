@@ -28,7 +28,7 @@ public final class LockedTransceiverBreakHandler {
             event.setCanceled(true);
             if (player != null) {
                 player.addChatMessage(new ChatComponentTranslation(
-                    "extendedae_plus.chat.wireless_transceiver.locked"));
+                    "ae2wtx.chat.transceiver.locked"));
             }
         }
     }

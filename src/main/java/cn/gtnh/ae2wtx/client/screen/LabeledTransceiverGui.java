@@ -143,13 +143,13 @@ public class LabeledTransceiverGui extends GuiContainer {
         int secondRowY = startY + BTN_H + vGap;
 
         newButton = new IconButton(0, startX, startY,
-            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.new"));
+            StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.new"));
         deleteButton = new IconButton(1, secondColX, startY,
-            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.delete"));
+            StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.delete"));
         setButton = new IconButton(2, startX, secondRowY,
-            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.set"));
+            StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.set"));
         disconnectButton = new IconButton(3, secondColX, secondRowY,
-            StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.refresh"));
+            StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.refresh"));
         buttonList.add(newButton);
         buttonList.add(deleteButton);
         buttonList.add(setButton);
@@ -524,8 +524,8 @@ public class LabeledTransceiverGui extends GuiContainer {
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         float scale = getScale();
-        drawScaledText(StatCollector.translateToLocal("block.extendedae_plus.labeled_wireless_transceiver"), 8, 8, scale, 0x404040);
-        drawScaledText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.info"), 134, 8, scale, 0x404040);
+        drawScaledText(StatCollector.translateToLocal("tile.ae2wtx.labeled_wireless_transceiver.name"), 8, 8, scale, 0x404040);
+        drawScaledText(StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.info"), 134, 8, scale, 0x404040);
         drawButtonTexts();
         drawStatus(scale);
     }
@@ -553,14 +553,14 @@ public class LabeledTransceiverGui extends GuiContainer {
         int secondColX = startX + BTN_W + hGap;
         int secondRowY = startY + BTN_H + vGap;
         String deleteKey = isDeleteArmed() ? "gui.ae2wtx.labeled_wireless.button.confirm_delete"
-            : "gui.extendedae_plus.labeled_wireless.button.delete";
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.new"), startX, startY,
+            : "gui.ae2wtx.labeled_wireless.button.delete";
+        drawButtonText(StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.new"), startX, startY,
             buttonTextColor(newButton));
         drawButtonText(StatCollector.translateToLocal(deleteKey), secondColX, startY,
             deleteButton.enabled && isDeleteArmed() ? 0xFF6060 : buttonTextColor(deleteButton));
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.set"), startX, secondRowY,
+        drawButtonText(StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.set"), startX, secondRowY,
             buttonTextColor(setButton));
-        drawButtonText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.button.refresh"), secondColX,
+        drawButtonText(StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.button.refresh"), secondColX,
             secondRowY, buttonTextColor(disconnectButton));
     }
 
@@ -604,22 +604,22 @@ public class LabeledTransceiverGui extends GuiContainer {
         float infoScale = getScale();
         String displayLabel = inspectedLabel.isEmpty() ? currentLabel : inspectedLabel;
         String labelKey = showingSelectedBand ? "gui.ae2wtx.labeled_wireless.selected_label"
-            : "gui.extendedae_plus.labeled_wireless.current_label";
+            : "gui.ae2wtx.labeled_wireless.current_label";
         String labelLine = StatCollector.translateToLocal(labelKey) + ": "
             + (displayLabel.isEmpty() ? "-" : displayLabel);
-        String ownerLine = StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.current_owner") + ": "
-            + (currentOwner.isEmpty() ? StatCollector.translateToLocal("extendedae_plus.jade.owner.public") : currentOwner);
-        String onlineLine = StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.online_count") + ": " + onlineCount;
+        String ownerLine = StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.current_owner") + ": "
+            + (currentOwner.isEmpty() ? StatCollector.translateToLocal("ae2wtx.waila.owner.public") : currentOwner);
+        String onlineLine = StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.online_count") + ": " + onlineCount;
         boolean inspectingOtherBand = showingSelectedBand && !displayLabel.equals(currentLabel);
         String channelLine = inspectingOtherBand
             ? StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.endpoint_count") + ": " + endpointCount
             : maxChannels <= 0
-                ? StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels", usedChannels)
-                : StatCollector.translateToLocalFormatted("extendedae_plus.jade.channels_of", usedChannels, maxChannels);
+                ? StatCollector.translateToLocalFormatted("ae2wtx.waila.channels", usedChannels)
+                : StatCollector.translateToLocalFormatted("ae2wtx.waila.channels_of", usedChannels, maxChannels);
         // whole-frequency (label) usage across ALL endpoints; denominator is the
         // real capacity granted by the ME network (32 dense, ∞ in infinite mode)
         boolean infinite = maxChannels <= 0 || maxChannels >= 1_000_000;
-        String networkPrefix = StatCollector.translateToLocal("extendedae_plus.jade.channels_network_label");
+        String networkPrefix = StatCollector.translateToLocal("ae2wtx.waila.channels_network_label");
         String networkValue;
         int networkColor = 0x404040;
         if (infinite) {

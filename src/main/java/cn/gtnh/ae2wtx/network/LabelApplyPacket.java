@@ -91,7 +91,7 @@ public class LabelApplyPacket implements IMessage {
             }
             if (lte.isLocked() && !TransceiverSecurity.canManage(player, lte)) {
                 player.addChatMessage(new ChatComponentTranslation(
-                    "extendedae_plus.chat.wireless_transceiver.locked"));
+                    "ae2wtx.chat.transceiver.locked"));
                 return;
             }
             if (label == null || label.isEmpty()) {
