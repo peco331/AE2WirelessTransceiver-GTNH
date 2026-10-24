@@ -10,6 +10,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.IIcon;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.AE2Wtx;
@@ -84,6 +85,23 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
                     ((EntityPlayer) placer).getUniqueID(),
                     ((EntityPlayer) placer).getCommandSenderName());
             }
+        }
+    }
+
+    @Override
+    public void onNeighborBlockChange(World world, int x, int y, int z, Block neighbor) {
+        notifyNeighborsChanged(world, x, y, z);
+    }
+
+    @Override
+    public void onNeighborChange(IBlockAccess world, int x, int y, int z, int tileX, int tileY, int tileZ) {
+        notifyNeighborsChanged(world, x, y, z);
+    }
+
+    private static void notifyNeighborsChanged(IBlockAccess world, int x, int y, int z) {
+        TileEntity te = world.getTileEntity(x, y, z);
+        if (te instanceof LabeledWirelessTransceiverBlockEntity) {
+            ((LabeledWirelessTransceiverBlockEntity) te).onNeighborsChanged();
         }
     }
 

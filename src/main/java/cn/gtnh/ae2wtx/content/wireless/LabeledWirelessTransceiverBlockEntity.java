@@ -85,19 +85,21 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             firstTickDone = true;
             refreshLabel(true);
             // immediate first neighbor scan so a freshly placed transceiver
-            // connects to adjacent cable without waiting for the 5-tick loop
-            localConnTick = 4;
-            maintainLocalConnections();
+            // connects to adjacent cable without waiting for the refresh loop
+            neighborsChanged = true;
         }
-        if (node != null) {
-            // rv3 Grid.update() never calls GridNode.updateState(); periodic
-            // re-runs are what join/keep this node in the local ME grid.
+        // rv3 Grid.update() never calls GridNode.updateState(); periodic
+        // re-runs are what join/keep this node in the local ME grid. Running
+        // it every tick rescanned all six neighbors per transceiver per tick,
+        // so refresh on neighbor changes plus a slow safety interval instead.
+        boolean refreshDue = neighborsChanged || ++nodeRefreshTick >= NODE_REFRESH_INTERVAL_TICKS;
+        if (node != null && refreshDue && !isLocalConnectionRetryDeferred()) {
+            neighborsChanged = false;
+            nodeRefreshTick = 0;
+            applyNodeIdentity();
+            node.updateState();
             if (!isLocalConnectionRetryDeferred()) {
-                applyNodeIdentity();
-                node.updateState();
-                if (!isLocalConnectionRetryDeferred()) {
-                    maintainLocalConnections();
-                }
+                maintainLocalConnections();
             }
         }
         labelLink.updateStatus();
@@ -128,9 +130,16 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
     }
 
-    private int localConnTick = 0;
+    private static final int NODE_REFRESH_INTERVAL_TICKS = 20;
+    private int nodeRefreshTick = 0;
+    private boolean neighborsChanged = false;
     private long localConnectionRetryNotBeforeTick = Long.MIN_VALUE;
     private long lastManualConnectionWarningTick = Long.MIN_VALUE;
+
+    /** Called by the block when an adjacent block or tile entity changes. */
+    public void onNeighborsChanged() {
+        neighborsChanged = true;
+    }
 
     private boolean isLocalConnectionRetryDeferred() {
         return worldObj != null && worldObj.getTotalWorldTime() < localConnectionRetryNotBeforeTick;
@@ -142,15 +151,17 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
      * placed next to each other must never bridge channels directly - they may
      * only communicate through their label network (virtual node), so labels
      * cannot bleed into each other.
+     *
+     * Only connections AE2 itself considers valid are created: the neighbor
+     * must expose that side and the colors must match. GT ME hatches, for
+     * example, accept AE only on their front face; a forced side connection is
+     * torn down again by FindConnections on the next updateState, and the
+     * connect/disconnect cycle repaths the whole grid over and over.
      */
     private void maintainLocalConnections() {
         if (node == null || beingRemoved || isInvalid() || isLocalConnectionRetryDeferred()) {
             return;
         }
-        if (++localConnTick < 5) {
-            return;
-        }
-        localConnTick = 0;
         applyNodeIdentity();
         for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
             TileEntity te = worldObj.getTileEntity(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ);
@@ -161,7 +172,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 continue; // never direct-connect transceiver to transceiver
             }
             IGridNode other = ((IGridHost) te).getGridNode(dir.getOpposite());
-            if (other == null || other == node) {
+            if (other == null || other == node || !acceptsConnection(other, dir.getOpposite(), getGridColor())) {
                 continue;
             }
             boolean has = false;
@@ -203,6 +214,20 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 break;
             }
         }
+    }
+
+    /** Mirror of AE2's GridNode.canConnect for the neighbor side of a manual connection. */
+    static boolean acceptsConnection(IGridNode other, ForgeDirection sideOfOther, AEColor ownColor) {
+        IGridBlock block = other.getGridBlock();
+        if (block == null) {
+            return false;
+        }
+        EnumSet<ForgeDirection> sides = block.getConnectableSides();
+        if (sides == null || !sides.contains(sideOfOther)) {
+            return false;
+        }
+        AEColor color = block.getGridColor();
+        return color == null || ownColor == null || color.matches(ownColor);
     }
 
     private boolean chunkUnloading = false;
@@ -450,6 +475,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         }
     }
 
+    static final int MAX_BRANCH_NODES = 4096;
+
     /**
      * Device count: traverses the real AE2 grid connections (cables and machines)
      * starting from this transceiver's local node. Every connected node carrying
@@ -476,7 +503,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         visitedNodes.add(node);
         queue.add(node);
 
-        while (!queue.isEmpty()) {
+        // A transceiver attached to a large network branch would otherwise walk
+        // the whole branch every refresh; past this size the count is a floor.
+        while (!queue.isEmpty() && visitedNodes.size() < MAX_BRANCH_NODES) {
             IGridNode cur = queue.poll();
             for (IGridConnection conn : cur.getConnections()) {
                 IGridNode other = conn.getOtherSide(cur);
@@ -865,10 +894,23 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.locked = tag.getBoolean("locked");
         if (tag.hasKey("placerId")) {
-            this.placerId = UUID.fromString(tag.getString("placerId"));
+            this.placerId = parsePlacerId(tag.getString("placerId"));
         }
         if (tag.hasKey("placerName")) {
             this.placerName = tag.getString("placerName");
+        }
+    }
+
+    /**
+     * A corrupt id must not throw out of readFromNBT: vanilla does not catch
+     * it there, so one bad tile would abort the whole chunk load.
+     */
+    static UUID parsePlacerId(String raw) {
+        try {
+            return raw == null || raw.isEmpty() ? null : UUID.fromString(raw);
+        } catch (IllegalArgumentException e) {
+            AE2Wtx.LOG.warn("ae2wtx: ignoring corrupt transceiver owner id '{}'", raw);
+            return null;
         }
     }
 
@@ -900,7 +942,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.networkChannelsSync = tag.getInteger("netCh");
         this.onlineCountSync = tag.getInteger("netOn");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
-        this.placerId = tag.hasKey("placerId") ? UUID.fromString(tag.getString("placerId")) : null;
+        this.placerId = tag.hasKey("placerId") ? parsePlacerId(tag.getString("placerId")) : null;
         this.placerName = tag.hasKey("placerName") ? tag.getString("placerName") : null;
         if (worldObj != null) {
             worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);

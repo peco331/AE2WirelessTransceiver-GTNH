@@ -60,14 +60,16 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - 收发器 `isWorldAccessible() = true`：确保 AE2 原版 `ToolNetworkVisualiser` 将其识别为真实物理方块节点加入 `VNode` 列表
 - 防串频道保护：在 `getGridNode(ForgeDirection dir)` 中检查方向上的邻居方块实体，若为其他收发器则直接返回 `null`，彻底杜绝相邻收发器直接互连
 - `VirtualLabelNodeHost` 保持 `isWorldAccessible() = false`，作为内部虚拟中继节点，不暴露在世界物理网格中
-- `maintainLocalConnections()`（每 5 tick）手动扫描 6 方向 IGridHost 建连，**跳过其他收发器**
-- 每 tick 保留 `node.updateState()`（网格接入关键）
+- `maintainLocalConnections()` 手动扫描 6 方向 IGridHost 建连，**跳过其他收发器**；建连前按 AE2 `GridNode.canConnect` 的同等规则检查对方 `getConnectableSides()` 是否包含朝向本方块的一面、`AEColor.matches` 颜色是否相容（`acceptsConnection`）。否则 GT ME 仓室（只开放正面）会被我们手动接上，又在它自己的 `FindConnections` 里被拆掉，反复闪断。
+- `node.updateState()` 与邻居扫描：首 tick、`onNeighborBlockChange`/`onNeighborChange` 触发时立即执行，其余每 20 tick 兜底一次（以前每 tick 执行）。
 
 ### 3.5 频道占用统计（玩家可见口径）
 - 从收发器本地节点沿真实 `IGridConnection` 做 BFS，只统计真正接在该导线分支上的节点。
 - 每个带 `REQUIRE_CHANNEL` 的普通节点计 1；不检查 `isActive()` 或已分配频道，因此缺频道的第 33 个设备仍会得到精确的红色 `33/32`。
 - 带 `MULTIBLOCK` 的 AE2 多方块使用 `IGridMultiblock.getMultiblockNodes()` 与 AE2 路径缓存相同的节点集折叠为一次需求。
 - 其他无线收发器、频段虚拟节点和 ME Controller 是不计数且不穿越的边界；无标志线缆节点不计数但继续遍历。
+- 单次 BFS 最多访问 `MAX_BRANCH_NODES = 4096` 个节点，超出部分不再计入（仅巨型网络显示会偏小，换取服务端 tick 上限）。
+- 全频段频道合计排除 `hasControllerOnLocalBranch()` 的端点：那一侧是频道来源，不占频段频道；在线数仍包含它们。
 - 结果缓存 `serverUsedCache`：拓扑事件置 dirty 后 2 tick 合并刷新，稳定状态每 10 tick 错峰校准；Waila/GUI/全网统计只读缓存。
 - maxChannels 读 `GridNode.getMaxChannels()`（rv3: `CHANNEL_COUNT[compressedData&3]` = {0, 8, 32, MAX_VALUE}；无限频道模式显示 ∞）
 - 收发器节点与频段虚拟节点都固定声明 `DENSE_CAPACITY`，因此所有频段的显示容量统一为 `32`；全局关闭 AE2 频道时统一为 `∞`。周围普通线缆的 8 频道限制不会改变无线节点自身的 `/32` 显示口径。
@@ -151,6 +153,7 @@ cn.gtnh.ae2wtx
 ## 6. 已知限制
 
 - **channel 0-5 全部六态**未复刻（本 mod 方块仅 off/on 两态，off=channel0 外观 / on=channel5 外观；频道实时信息由 Waila/GUI 呈现）
+- 网络工具无线连线的 Mixin 是可选的（`required: false`、`require = 0`）：AE2 改动 `onUpdate` 后只会少画无线连线，不影响启动。
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
 - 玩家可见频道数采用实际导线拓扑上的需求口径；它有意显示需求而非已分配数，以便超载时仍显示 `33/32`
 - CI 覆盖编译、自动化测试、静态检查与 Java 8 字节码检查；当前项目不要求目标 GTNH 客户端或专用服务器烟雾测试作为 beta3 合入与发布前置条件

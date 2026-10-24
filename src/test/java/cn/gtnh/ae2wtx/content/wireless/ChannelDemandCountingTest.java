@@ -2,6 +2,7 @@ package cn.gtnh.ae2wtx.content.wireless;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -107,6 +108,21 @@ public class ChannelDemandCountingTest {
         }
 
         assertEquals(2, invokeCounter(root.proxy));
+    }
+
+    @Test
+    public void stopsWalkingAVeryLargeBranch() throws Exception {
+        NodeHandler root = new NodeHandler(EnumSet.noneOf(GridFlags.class), basicGridBlock());
+        NodeHandler previous = root;
+        int length = LabeledWirelessTransceiverBlockEntity.MAX_BRANCH_NODES * 2;
+        for (int i = 0; i < length; i++) {
+            NodeHandler device = new NodeHandler(EnumSet.of(GridFlags.REQUIRE_CHANNEL), basicGridBlock());
+            connect(previous, device);
+            previous = device;
+        }
+
+        int counted = invokeCounter(root.proxy);
+        assertTrue(counted > 0 && counted < length);
     }
 
     @Test

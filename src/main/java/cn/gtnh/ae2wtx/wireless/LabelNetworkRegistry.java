@@ -937,7 +937,13 @@ public class LabelNetworkRegistry extends WorldSavedData {
                     if (lte.isOnline()) {
                         online++;
                     }
-                    total = (int) Math.min(Integer.MAX_VALUE, (long) total + lte.getUsedChannelsForDisplay());
+                    // The controller-side branch is where the band's channels
+                    // come from; its own devices draw from the controller
+                    // directly and never cross the band, so they are not band
+                    // demand.
+                    if (!lte.hasControllerOnLocalBranch()) {
+                        total = (int) Math.min(Integer.MAX_VALUE, (long) total + lte.getUsedChannelsForDisplay());
+                    }
                 }
             }
             this.cachedTotalUsedChannels = total;

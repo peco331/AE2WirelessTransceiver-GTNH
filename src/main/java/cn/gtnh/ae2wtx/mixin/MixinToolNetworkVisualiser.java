@@ -17,6 +17,11 @@ import appeng.items.tools.ToolNetworkVisualiser.VLink;
 import appeng.items.tools.ToolNetworkVisualiser.VNode;
 import cn.gtnh.ae2wtx.compat.NetworkVisualiserCompat;
 
+/**
+ * Display-only: adds wireless band links to the AE2 network tool. Optional
+ * (require = 0, config not required) so an AE2 update that changes onUpdate
+ * only drops these links instead of aborting game startup.
+ */
 @Mixin(ToolNetworkVisualiser.class)
 public abstract class MixinToolNetworkVisualiser {
 
@@ -26,7 +31,7 @@ public abstract class MixinToolNetworkVisualiser {
             value = "NEW",
             target = "(Ljava/util/ArrayList;Ljava/util/ArrayList;)Lappeng/core/sync/packets/PacketNetworkVisualiserData;",
             remap = false),
-        require = 1
+        require = 0
     )
     private PacketNetworkVisualiserData ae2wtx$addWirelessVisualisationLinks(
         ArrayList<VNode> nodes,
