@@ -56,6 +56,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - 安全拒绝只会保持断链，并按 100 tick 退避重试；不会用对齐安全键的方式绕过安全站。`LabelLink` 被拒时每 1200 tick 记一条 WARN（含坐标、频段与异常）。
 - **玩家 ID 必须用完整 GameProfile 解析**：AE2 `PlayerRegistry.getID` 对名字为空的不完整档案直接返回 `-1`（只按 UUID 存映射，名字不参与）。频段虚拟节点曾用 `new GameProfile(owner, "")`，得到 `-1`；`Platform.securityCheck` 在一侧网格有已启用安全站、另一侧不安全时，检查不安全一侧节点的 playerID 是否有 BUILD，`-1` 必然被拒，导致频段在开服后无法再并入受保护的主网。现统一走 `LabelNetworkRegistry.aeProfile(uuid, name)`（名字为空时用 UUID 字符串占位）。开服瞬间安全缓存未就绪（`startupTicks < 20`），这类合并会侥幸成功，因此症状表现为“重启后好、之后新增连接失败”。
 
+- **公共频段（无所有者）有意不绕过安全站**：其虚拟节点 playerID 为 `-1`，并入有已启用安全站的网络会被 AE2 拒绝，这与 AE2 对无主设备的语义一致。需要接入受保护网络时请使用有所有者的频段。
 - 诊断状态 `TransceiverStatus`：与频道快照同节奏（≤10 tick）在服务端计算，按优先级取第一个问题——无频段 → 链路被拒（`LabelLink.lastAttemptFailed()`）/连接中 → `IPathingGrid.getControllerState() == CONTROLLER_CONFLICT` → `isNetworkBooting()` → `IEnergyGrid.isNetworkPowered()`。以 `status` 字节随描述包同步，Waila 与 GUI 只读客户端值。
 
 ### 3.4 防串频道与节点可见性
