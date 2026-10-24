@@ -15,6 +15,8 @@ import net.minecraft.util.StatCollector;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
+import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
+import cn.gtnh.ae2wtx.content.wireless.TransceiverStatus;
 import cn.gtnh.ae2wtx.gui.LabeledContainer;
 import cn.gtnh.ae2wtx.network.LabelApplyPacket;
 import cn.gtnh.ae2wtx.network.LabelDeletePacket;
@@ -491,6 +493,20 @@ public class LabeledTransceiverGui extends GuiContainer {
         drawScaledText(StatCollector.translateToLocal("block.extendedae_plus.labeled_wireless_transceiver"), 8, 8, scale, 0x404040);
         drawScaledText(StatCollector.translateToLocal("gui.extendedae_plus.labeled_wireless.info"), 134, 8, scale, 0x404040);
         drawButtonTexts();
+        drawStatus(scale);
+    }
+
+    /** Status of this transceiver below the buttons, read from the synced client tile. */
+    private void drawStatus(float scale) {
+        net.minecraft.tileentity.TileEntity te = player.worldObj.getTileEntity(x, y, z);
+        if (!(te instanceof LabeledWirelessTransceiverBlockEntity)) {
+            return;
+        }
+        TransceiverStatus status = ((LabeledWirelessTransceiverBlockEntity) te).getStatusForDisplay();
+        String prefix = StatCollector.translateToLocal("ae2wtx.status.label");
+        drawScaledText(prefix, 134, 143, scale, 0x404040);
+        drawScaledText(trim(StatCollector.translateToLocal(status.langKey())),
+            134 + (int) (fontRendererObj.getStringWidth(prefix) * scale), 143, scale, status.color());
     }
 
     private void drawButtonTexts() {

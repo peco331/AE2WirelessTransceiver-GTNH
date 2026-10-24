@@ -31,6 +31,8 @@ import appeng.api.networking.IGridMultiblock;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.events.MENetworkPowerIdleChange;
+import appeng.api.networking.pathing.ControllerState;
+import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEColor;
 import appeng.api.util.DimensionalCoord;
@@ -624,6 +626,11 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return labelLink != null && labelLink.isConnected();
     }
 
+    /** Diagnostic status (Waila/GUI); refreshed with the channel snapshot. */
+    public TransceiverStatus getStatusForDisplay() {
+        return statusSync;
+    }
+
     public String getLabelForDisplay() {
         return labelForDisplay;
     }
@@ -767,6 +774,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     /* ===================== visual state (metadata 0/1 online) ===================== */
 
     private boolean onlineSync = false;
+    private TransceiverStatus statusSync = TransceiverStatus.NO_BAND;
     private int channelsSync = 0;
     private int maxChannelsSync = 32;
     private boolean channelCountDirty = false;
@@ -838,6 +846,37 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             }
         }
 
+        boolean online = false;
+        if (refreshSnapshot) {
+            IGridNode n = node;
+            ControllerState controllerState = ControllerState.NO_CONTROLLER;
+            boolean booting = false;
+            boolean powered = false;
+            try {
+                IGrid grid = n == null ? null : n.getGrid();
+                if (grid != null) {
+                    powered = ((IEnergyGrid) grid.getCache(IEnergyGrid.class)).isNetworkPowered();
+                    IPathingGrid pathing = grid.getCache(IPathingGrid.class);
+                    controllerState = pathing.getControllerState();
+                    booting = pathing.isNetworkBooting();
+                }
+            } catch (Exception ignored) {
+                powered = false;
+            }
+            online = n != null && n.isActive() && powered;
+            TransceiverStatus status = TransceiverStatus.compute(
+                labelForDisplay != null && !labelForDisplay.isEmpty(),
+                linkUp,
+                labelLink != null && labelLink.lastAttemptFailed(),
+                controllerState,
+                booting,
+                powered);
+            if (status != statusSync) {
+                statusSync = status;
+                syncNeeded = true;
+            }
+        }
+
         if (syncNeeded) {
             syncToClients();
         }
@@ -845,16 +884,6 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             return;
         }
 
-        IGridNode n = node;
-        boolean online = false;
-        if (n != null && n.isActive()) {
-            try {
-                IGrid grid = n.getGrid();
-                online = grid != null && ((IEnergyGrid) grid.getCache(IEnergyGrid.class)).isNetworkPowered();
-            } catch (Exception ignored) {
-                online = false;
-            }
-        }
         int meta = online ? 1 : 0;
         if (worldObj.getBlockMetadata(xCoord, yCoord, zCoord) != meta) {
             worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 3);
@@ -871,6 +900,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         super.writeToNBT(tag);
         tag.setLong("frequency", frequency);
         tag.setBoolean("online", onlineSync);
+        tag.setByte("status", (byte) statusSync.ordinal());
         tag.setInteger("chSync", channelsSync);
         tag.setInteger("maxCh", maxChannelsSync);
         tag.setBoolean("locked", locked);
@@ -936,6 +966,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         // read client-visible state only (no server-side registry side effects)
         this.frequency = tag.getLong("frequency");
         this.onlineSync = tag.getBoolean("online");
+        this.statusSync = TransceiverStatus.fromOrdinal(tag.getByte("status"));
         this.channelsSync = tag.getInteger("chSync");
         this.maxChannelsSync = tag.getInteger("maxCh");
         this.locked = tag.getBoolean("locked");

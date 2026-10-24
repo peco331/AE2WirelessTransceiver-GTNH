@@ -10,11 +10,12 @@ import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
+import cn.gtnh.ae2wtx.content.wireless.TransceiverStatus;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
 import mcp.mobius.waila.api.IWailaDataProvider;
 
-/** Waila provider for the wireless transceiver: frequency/owner/channels/lock/online. */
+/** Waila provider for the wireless transceiver: frequency/owner/channels/lock/status. */
 public class WailaProvider implements IWailaDataProvider {
 
     public static void callback(mcp.mobius.waila.api.IWailaRegistrar registrar) {
@@ -72,10 +73,25 @@ public class WailaProvider implements IWailaDataProvider {
             currenttip.add(StatCollector.translateToLocal(
                 lte.isLocked() ? "extendedae_plus.chat.wireless_transceiver.locked_status"
                     : "extendedae_plus.chat.wireless_transceiver.unlocked_status"));
-            currenttip.add(StatCollector.translateToLocal(
-                lte.isOnline() ? "extendedae_plus.jade.online" : "extendedae_plus.jade.offline"));
+            TransceiverStatus status = lte.getStatusForDisplay();
+            currenttip.add(StatCollector.translateToLocal("ae2wtx.status.label")
+                + statusColor(status) + StatCollector.translateToLocal(status.langKey()));
         }
         return currenttip;
+    }
+
+    private static String statusColor(TransceiverStatus status) {
+        switch (status) {
+            case OK:
+                return "§a";
+            case NO_BAND:
+                return "§7";
+            case LINKING:
+            case BOOTING:
+                return "§6";
+            default:
+                return "§c";
+        }
     }
 
     @Override

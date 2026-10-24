@@ -22,6 +22,7 @@ public class LabelLink {
     private IGridConnection connection;
     private long retryNotBeforeTick = Long.MIN_VALUE;
     private long lastFailureWarningTick = Long.MIN_VALUE;
+    private boolean lastAttemptFailed = false;
 
     public LabelLink(IWirelessEndpoint host) {
         this.host = Objects.requireNonNull(host);
@@ -31,6 +32,7 @@ public class LabelLink {
         if (this.target != target) {
             destroyConnection();
             retryNotBeforeTick = Long.MIN_VALUE;
+            lastAttemptFailed = false;
         }
         this.target = target;
         updateStatus();
@@ -42,6 +44,11 @@ public class LabelLink {
 
     public boolean isConnected() {
         return connection != null;
+    }
+
+    /** The latest connection attempt was refused (usually AE2 security). */
+    public boolean lastAttemptFailed() {
+        return lastAttemptFailed;
     }
 
     /** Call from serverTick or on label changes. */
@@ -77,6 +84,7 @@ public class LabelLink {
             if (target.ensureVirtualNode(world)) {
                 targetNode = target.node();
             } else {
+                lastAttemptFailed = true;
                 retryNotBeforeTick = now + RETRY_DELAY_TICKS;
             }
         }
@@ -96,6 +104,7 @@ public class LabelLink {
                 IGridNode b = current.b();
                 if ((a == hostNode || b == hostNode) && (a == targetNode || b == targetNode)) {
                     retryNotBeforeTick = Long.MIN_VALUE;
+                    lastAttemptFailed = false;
                     return; // already connected correctly
                 }
                 current.destroy();
@@ -106,8 +115,10 @@ public class LabelLink {
             // by leaving this link disconnected.
             connection = AEApi.instance().createGridConnection(hostNode, targetNode);
             retryNotBeforeTick = Long.MIN_VALUE;
+            lastAttemptFailed = false;
         } catch (Exception e) {
             destroyConnection();
+            lastAttemptFailed = true;
             retryNotBeforeTick = now + RETRY_DELAY_TICKS;
             // A silently retried denial leaves the whole band cut off from the
             // network with no trace; report it, throttled to once a minute.
@@ -128,6 +139,7 @@ public class LabelLink {
 
     public void onUnloadOrRemove() {
         this.target = null;
+        lastAttemptFailed = false;
         retryNotBeforeTick = Long.MIN_VALUE;
         destroyConnection();
     }
