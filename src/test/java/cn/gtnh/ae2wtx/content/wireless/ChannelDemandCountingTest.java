@@ -1,6 +1,7 @@
 package cn.gtnh.ae2wtx.content.wireless;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -108,14 +109,32 @@ public class ChannelDemandCountingTest {
         assertEquals(2, invokeCounter(root.proxy));
     }
 
+    @Test
+    public void remoteBranchWithoutControllerIsNotFlagged() throws Exception {
+        NodeHandler root = new NodeHandler(EnumSet.noneOf(GridFlags.class), basicGridBlock());
+        connect(root, new NodeHandler(EnumSet.of(GridFlags.REQUIRE_CHANNEL), basicGridBlock()));
+
+        LabeledWirelessTransceiverBlockEntity tile = tileWithNode(root.proxy);
+        assertEquals(1, invokeCounter(tile));
+        assertFalse(tile.hasControllerOnLocalBranch());
+    }
+
     private static int invokeCounter(IGridNode root) throws Exception {
+        return invokeCounter(tileWithNode(root));
+    }
+
+    private static int invokeCounter(LabeledWirelessTransceiverBlockEntity tile) throws Exception {
+        Method method = LabeledWirelessTransceiverBlockEntity.class.getDeclaredMethod("countDeviceConsumers");
+        method.setAccessible(true);
+        return (Integer) method.invoke(tile);
+    }
+
+    private static LabeledWirelessTransceiverBlockEntity tileWithNode(IGridNode root) throws Exception {
         LabeledWirelessTransceiverBlockEntity tile = new LabeledWirelessTransceiverBlockEntity();
         Field nodeField = LabeledWirelessTransceiverBlockEntity.class.getDeclaredField("node");
         nodeField.setAccessible(true);
         nodeField.set(tile, root);
-        Method method = LabeledWirelessTransceiverBlockEntity.class.getDeclaredMethod("countDeviceConsumers");
-        method.setAccessible(true);
-        return (Integer) method.invoke(tile);
+        return tile;
     }
 
     private static void connect(NodeHandler first, NodeHandler second) {

@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
@@ -75,10 +76,14 @@ public final class NetworkVisualiserCompat {
                 return Integer.compare(n1.vnode.z, n2.vnode.z);
             });
 
-            WirelessVisualNode anchor = group.get(0);
-            for (int i = 1; i < group.size(); i++) {
-                WirelessVisualNode peer = group.get(i);
-                if (hasExistingLink(links, anchor.vnode, peer.vnode)) {
+            // The real hub is the band's virtual node, which has no world
+            // position. Draw the star from the endpoint that feeds the band its
+            // channels (the one whose local branch reaches an ME controller);
+            // a plain coordinate-ordered hub would make an arbitrary remote
+            // transceiver look like the centre of the network.
+            WirelessVisualNode anchor = group.get(selectAnchorIndex(group, n -> n.transceiver.hasControllerOnLocalBranch()));
+            for (WirelessVisualNode peer : group) {
+                if (peer == anchor || hasExistingLink(links, anchor.vnode, peer.vnode)) {
                     continue;
                 }
 
@@ -88,6 +93,16 @@ public final class NetworkVisualiserCompat {
                 links.add(new VLink(anchor.vnode, peer.vnode, channels, flags));
             }
         }
+    }
+
+    /** First channel-source endpoint in the (already sorted) group, else the first endpoint. */
+    static <T> int selectAnchorIndex(List<T> sortedGroup, Predicate<T> isChannelSource) {
+        for (int i = 0; i < sortedGroup.size(); i++) {
+            if (isChannelSource.test(sortedGroup.get(i))) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     private static boolean isSameLocation(VNode a, VNode b) {

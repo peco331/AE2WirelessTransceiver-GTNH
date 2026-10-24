@@ -84,6 +84,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - **真实网格与可视化解耦**：
   - 底层 AE2 Grid 拓扑：每个收发器仅与该频段的 `VirtualLabelNodeHost` 保持一条真实的 `IGridConnection`；绝不创建 `Transceiver A <-> Transceiver B` 的真实物理连接，避免网格循环回路与频道紊乱。
   - 客户端 3D 拓扑渲染：通过 `MixinToolNetworkVisualiser` 在 `ToolNetworkVisualiser.onUpdate` 服务端发送封包前拦截数据，由 `NetworkVisualiserCompat` 从当前视角 `World` 中已有的 `VNode` 列表过滤出有效频段节点，按坐标字典序升序生成确定的 $N-1$ 阶星型生成树（Spanning Star Tree），连线标记为 `VLinkFlags.DENSE`，并填入各收发器连接虚拟节点的实际无线占用频道数。
+  - 星型中心：真实中心是频段虚拟节点，它没有世界坐标，因此用一个收发器代替。优先选本地分支能到达 ME Controller 的收发器（频道来源侧，由频道统计 BFS 顺带缓存为 `hasControllerOnLocalBranch()`），有多个时取坐标最小者；都没有时才退回坐标最小者。若纯按坐标选，中心会随机落在远处多方块旁的收发器上，看起来像主网被隔离（2026-10 玩家实测误报）。
 
 ### 3.8 服务端安全与权限模型
 - **防盗与权限校验**：`TransceiverSecurity.canManage(player, te)` 保证未锁定收发器可正常交互；锁定收发器仅拥有者（Owner UUID）与服务器管理员（OP）可进行扳手拆卸、切换解锁与 GUI 频段管理。

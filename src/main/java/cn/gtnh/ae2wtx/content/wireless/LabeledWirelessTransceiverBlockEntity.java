@@ -472,6 +472,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         Set<IGridNode> countedConsumers = new java.util.HashSet<>();
         java.util.ArrayDeque<IGridNode> queue = new java.util.ArrayDeque<>();
         int consumers = 0;
+        boolean reachedController = false;
 
         visitedNodes.add(node);
         queue.add(node);
@@ -495,6 +496,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 // ME Controller acts as a channel source / network boundary: stop traversal
                 // TileCreativeEnergyController extends TileController in the locked AE2 build.
                 if (isControllerBoundary(machine)) {
+                    reachedController = true;
                     continue;
                 }
                 // Count demand rather than allocated channels, so missing-channel
@@ -507,7 +509,17 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
                 queue.add(other);
             }
         }
+        serverControllerOnBranchCache = reachedController;
         return consumers;
+    }
+
+    /**
+     * Whether this transceiver's local branch reaches an ME controller, i.e. it
+     * is the side the band's channels are sourced from. Server-side snapshot,
+     * refreshed together with the channel demand count.
+     */
+    public boolean hasControllerOnLocalBranch() {
+        return serverControllerOnBranchCache;
     }
 
     /**
@@ -734,6 +746,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     private long lastChannelCountTick = Long.MIN_VALUE;
     /** Server-side physical-demand snapshot; read by Waila/GUI/band stats. */
     private int serverUsedCache = 0;
+    /** Server-side snapshot: the local branch reaches an ME controller. */
+    private boolean serverControllerOnBranchCache = false;
 
     /**
      * Invalidate the demand snapshot without traversing the grid inside an AE2
@@ -773,7 +787,12 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
             lastChannelCountTick = now;
             channelCountDirty = false;
             int previousUsed = serverUsedCache;
-            serverUsedCache = node == null ? 0 : countDeviceConsumers();
+            if (node == null) {
+                serverUsedCache = 0;
+                serverControllerOnBranchCache = false;
+            } else {
+                serverUsedCache = countDeviceConsumers();
+            }
             int max = 32;
             if (node instanceof appeng.me.GridNode) {
                 max = ((appeng.me.GridNode) node).getMaxChannels();
