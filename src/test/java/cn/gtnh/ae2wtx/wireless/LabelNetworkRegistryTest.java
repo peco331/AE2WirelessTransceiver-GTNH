@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.UUID;
 
@@ -17,6 +18,17 @@ import cn.gtnh.ae2wtx.config.ModConfig;
 public class LabelNetworkRegistryTest {
 
     private static final UUID OWNER = UUID.fromString("01234567-89ab-cdef-0123-456789abcdef");
+
+    @Test
+    public void aeProfileIsAlwaysCompleteSoAe2ResolvesAPlayerId() {
+        // AE2 PlayerRegistry.getID returns -1 for an incomplete profile; a band
+        // virtual node with id -1 is rejected by every active Security Station.
+        assertTrue(LabelNetworkRegistry.aeProfile(OWNER, null).isComplete());
+        assertTrue(LabelNetworkRegistry.aeProfile(OWNER, "").isComplete());
+        assertTrue(LabelNetworkRegistry.aeProfile(OWNER, "  ").isComplete());
+        assertEquals(OWNER, LabelNetworkRegistry.aeProfile(OWNER, null).getId());
+        assertEquals("peco", LabelNetworkRegistry.aeProfile(OWNER, "peco").getName());
+    }
 
     @Test
     public void rejectsInvalidLabelsAndTrimsValidLabels() {

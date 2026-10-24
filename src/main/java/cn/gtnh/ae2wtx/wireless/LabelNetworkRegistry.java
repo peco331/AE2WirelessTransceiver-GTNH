@@ -66,6 +66,18 @@ public class LabelNetworkRegistry extends WorldSavedData {
         super(name);
     }
 
+    /**
+     * Profile accepted by AE2's player registry. {@code PlayerRegistry.getID}
+     * returns -1 for an incomplete profile (blank name), and a node with player
+     * id -1 is denied BUILD by every active Security Station, so a band joined
+     * to a secured, powered network after startup could never merge. AE2 keys
+     * player ids by UUID only, so any non-blank name resolves the same id.
+     */
+    public static GameProfile aeProfile(UUID owner, String knownName) {
+        String name = knownName == null || knownName.trim().isEmpty() ? owner.toString() : knownName;
+        return new GameProfile(owner, name);
+    }
+
     /* ===================== access ===================== */
 
     public static LabelNetworkRegistry get(World world) {
@@ -978,7 +990,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
                 this.virtualNode = createdNode;
                 this.virtualHost.setNode(createdNode);
                 if (!PUBLIC_NETWORK_UUID.equals(owner)) {
-                    int playerId = AEApi.instance().registries().players().getID(new GameProfile(owner, ""));
+                    int playerId = AEApi.instance().registries().players().getID(aeProfile(owner, null));
                     if (playerId >= 0) {
                         createdNode.setPlayerID(playerId);
                     }

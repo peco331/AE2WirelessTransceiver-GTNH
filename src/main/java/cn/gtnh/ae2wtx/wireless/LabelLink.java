@@ -4,6 +4,7 @@ import java.util.Objects;
 
 import net.minecraft.world.World;
 
+import cn.gtnh.ae2wtx.AE2Wtx;
 import appeng.api.AEApi;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
@@ -20,6 +21,7 @@ public class LabelLink {
     private LabelNetworkRegistry.LabelNetwork target;
     private IGridConnection connection;
     private long retryNotBeforeTick = Long.MIN_VALUE;
+    private long lastFailureWarningTick = Long.MIN_VALUE;
 
     public LabelLink(IWirelessEndpoint host) {
         this.host = Objects.requireNonNull(host);
@@ -104,9 +106,23 @@ public class LabelLink {
             // by leaving this link disconnected.
             connection = AEApi.instance().createGridConnection(hostNode, targetNode);
             retryNotBeforeTick = Long.MIN_VALUE;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             destroyConnection();
             retryNotBeforeTick = now + RETRY_DELAY_TICKS;
+            // A silently retried denial leaves the whole band cut off from the
+            // network with no trace; report it, throttled to once a minute.
+            if (lastFailureWarningTick == Long.MIN_VALUE || now - lastFailureWarningTick >= 1200L) {
+                lastFailureWarningTick = now;
+                AE2Wtx.LOG.warn(
+                    "ae2wtx: transceiver at {}:{},{},{} could not link to band '{}'; retrying in {} ticks: {}",
+                    world.provider.dimensionId,
+                    host.getX(),
+                    host.getY(),
+                    host.getZ(),
+                    target.label(),
+                    RETRY_DELAY_TICKS,
+                    e.toString());
+            }
         }
     }
 

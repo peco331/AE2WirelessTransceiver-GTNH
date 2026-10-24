@@ -116,9 +116,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         try {
             // players().getID() walks a registry every call - cache per owner
             if (cachedPlayerIdOwner == null || !cachedPlayerIdOwner.equals(placerId) || cachedPlayerId < 0) {
-                com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(placerId,
-                    placerName == null ? "" : placerName);
-                cachedPlayerId = appeng.api.AEApi.instance().registries().players().getID(profile);
+                cachedPlayerId = appeng.api.AEApi.instance().registries().players()
+                    .getID(LabelNetworkRegistry.aeProfile(placerId, placerName));
                 cachedPlayerIdOwner = placerId;
             }
             if (cachedPlayerId >= 0 && node.getPlayerID() != cachedPlayerId) {

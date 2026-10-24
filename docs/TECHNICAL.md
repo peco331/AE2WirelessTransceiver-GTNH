@@ -53,7 +53,8 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 ### 3.3 AE2 安全模型
 - `applyNodeIdentity()` 在标签连接、物理邻接扫描和 `updateState()` 之前设置放置者的 AE2 `playerID`。
 - 不读取、复制或覆写私有 SecurityKey；无线连接统一通过 AE2 正常的 `createGridConnection` 安全检查。
-- 安全拒绝只会保持断链，并按 100 tick 退避重试；不会用对齐安全键的方式绕过安全站。
+- 安全拒绝只会保持断链，并按 100 tick 退避重试；不会用对齐安全键的方式绕过安全站。`LabelLink` 被拒时每 1200 tick 记一条 WARN（含坐标、频段与异常）。
+- **玩家 ID 必须用完整 GameProfile 解析**：AE2 `PlayerRegistry.getID` 对名字为空的不完整档案直接返回 `-1`（只按 UUID 存映射，名字不参与）。频段虚拟节点曾用 `new GameProfile(owner, "")`，得到 `-1`；`Platform.securityCheck` 在一侧网格有已启用安全站、另一侧不安全时，检查不安全一侧节点的 playerID 是否有 BUILD，`-1` 必然被拒，导致频段在开服后无法再并入受保护的主网。现统一走 `LabelNetworkRegistry.aeProfile(uuid, name)`（名字为空时用 UUID 字符串占位）。开服瞬间安全缓存未就绪（`startupTicks < 20`），这类合并会侥幸成功，因此症状表现为“重启后好、之后新增连接失败”。
 
 ### 3.4 防串频道与节点可见性
 - 收发器 `isWorldAccessible() = true`：确保 AE2 原版 `ToolNetworkVisualiser` 将其识别为真实物理方块节点加入 `VNode` 列表
