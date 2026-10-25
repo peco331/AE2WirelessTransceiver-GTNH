@@ -21,6 +21,9 @@ public final class TransceiverIcons {
     IIcon bevelOff;
     IIcon portOn;
     IIcon portOff;
+    /** port_on/off_aNN: the panel at NN % opacity, index NN / 10 (1..9). */
+    private final IIcon[] portOnFaded = new IIcon[10];
+    private final IIcon[] portOffFaded = new IIcon[10];
     IIcon glass;
     IIcon arcs;
     IIcon fallbackOn;
@@ -42,6 +45,10 @@ public final class TransceiverIcons {
         bevelOff = reg.registerIcon(dir + "bevel_off");
         portOn = reg.registerIcon(dir + "port_on");
         portOff = reg.registerIcon(dir + "port_off");
+        for (int level = 1; level < 10; level++) {
+            portOnFaded[level] = reg.registerIcon(dir + "port_on_a" + level * 10);
+            portOffFaded[level] = reg.registerIcon(dir + "port_off_a" + level * 10);
+        }
         glass = reg.registerIcon(dir + "glass");
         arcs = reg.registerIcon(dir + "arcs");
         fallbackOn = reg.registerIcon(dir + "fallback_on");
@@ -61,6 +68,15 @@ public final class TransceiverIcons {
         return forTheme(te instanceof LabeledWirelessTransceiverBlockEntity
             ? ((LabeledWirelessTransceiverBlockEntity) te).getTheme()
             : TransceiverTheme.DEFAULT);
+    }
+
+    /** The wiring panel at {@code level} tenths of full opacity; 10 (or more) is the opaque one. */
+    IIcon port(boolean on, int level) {
+        if (level >= 10) {
+            return on ? portOn : portOff;
+        }
+        int i = Math.max(1, level);
+        return on ? portOnFaded[i] : portOffFaded[i];
     }
 
     public IIcon fallback(boolean on) {

@@ -117,7 +117,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - `wireless.wirelessMaxBandsPerWorld`：默认 `4096`、范围 `0..100000`，限制该世界存档的频率总量。
 - 两个上限都采用“创建时”语义：`0` 禁止新建；连接已有频率、加载/修复已有端点不消耗新配额；降低上限不会删除已有数据。负值与超界整数钳制到边界并记录警告，非整数恢复默认值。
 - `wireless.pruneMissingTransceivers`：默认 `true`，见 3.13。
-- `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`panelOpacity`（默认 `100`，`0..100`）、`glassArcs`（默认 `true`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）、`locateSeconds`（默认 `60`，`5..600`）、`locateThroughWalls`（默认 `true`）。在游戏内 Config 改动 `defaultTheme`、`simpleBlockModel`、`panelOpacity` 或 `glassArcs` 会重建已渲染区块。
+- `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`panelOpacity`（默认 `100`，`0..100`，按 10% 一档取整）、`glassArcs`（默认 `true`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）、`locateSeconds`（默认 `60`，`5..600`）、`locateThroughWalls`（默认 `true`）。在游戏内 Config 改动 `defaultTheme`、`simpleBlockModel`、`panelOpacity` 或 `glassArcs` 会重建已渲染区块。
 - 游戏内 Config 先把修改写进内存中的 `Property`，再发 `OnConfigChangedEvent`；处理器调用 `syncValues(false, false)`，**不能**再 `config.load()`，否则会从文件读回旧值、丢掉刚改的内容（1.1.1 及以前的问题）。`/ae2wtx reload` 用 `syncValues(false, true)` 从文件读取。`client` 分类直接放在配置界面第一页，`wireless` 分类在子页。
 - 客户端 Config 事件只在客户端代理中注册到 FML bus，避免 common/server 类路径引用客户端事件。它可即时刷新本地/集成服的功耗与上限；专用服务器修改 `config/ae2wtx.cfg` 后可用权限等级 2 的 `/ae2wtx reload` 即时刷新这些安全运行时值。跨维设置仍需完整重启。
 
@@ -169,7 +169,8 @@ cn.gtnh.ae2wtx
   - 位于方块边界上的面取相邻方块亮度，并按 `shouldSideBeRendered` 剔除；内部面取本方块亮度
   - 玻璃是单面四边形：从外面看只显示朝向镜头的那几块，后面的被剔除，与 mock 一致
   - 电弧动画为现代 AE2 `quantum_ring_light` 风格（32 帧、frametime 2），六个面各转 90° 或镜像，避免同步闪烁
-  - 接线面板不透明度：`client.panelOpacity` 为 100 时在 pass 0 不透明绘制；1~99 时改到 pass 1 以顶点 alpha 半透明绘制；0 时不画。`client.glassArcs=false` 时不画电弧
+  - 接线面板不透明度：`client.panelOpacity` 四舍五入到 10% 一档。100% 时在 pass 0 不透明绘制；10%~90% 时改到 pass 1，换用贴图本身带透明度的 `port_on/off_aNN.png`，并省去贴在玻璃上的背面；0 时不画。透明度不能放在顶点颜色里：GTNH 的 Angelica（Celeritas）地形渲染器把顶点 alpha 当作明暗系数，半透明的顶点色只会让面板变暗。地形四边形的顶点 alpha 一律为 1。`client.glassArcs=false` 时不画电弧
+  - 物品（物品栏、手持、掉落物）没有 TE，画不出黑洞；渲染器在玻璃后 0.1 格处补一个深色内胆，否则物品是空心的，透过玻璃能看到身后的世界
   - 中心 ±1.2 的黑色小方块恰好藏在黑洞阴影球里；特效关闭或超出特效距离时，它代替黑洞，避免能直接看穿方块
 - **黑洞与光点：`client/render/TransceiverEffectsRenderer`（TESR）**，几何按 0.95 缩放以免碰到玻璃
   - 朝向镜头构建：黑色阴影球；吸积盘绕镜头右轴倾斜 12°；盘的远侧经引力透镜弯到阴影上方和下方；外加光子环和更暗的次级环

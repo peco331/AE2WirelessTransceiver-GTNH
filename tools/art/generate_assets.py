@@ -126,6 +126,18 @@ def port_texture(p, on):
     return c
 
 
+# See-through panels (client.panelOpacity) need the alpha in the texture: Angelica's
+# terrain renderer reads vertex alpha as a shade factor, so a faded vertex colour
+# only darkens the panel. One copy per 10 % step, picked by TransceiverIcons.
+PANEL_FADE_STEPS = range(10, 100, 10)
+
+
+def faded(im, pct):
+    out = im.copy()
+    out.putalpha(im.getchannel("A").point(lambda a: int(round(a * pct / 100.0))))
+    return out
+
+
 def glass_texture(p):
     """Cool tinted pane with a frosted rim; only px 12..51 (units 3..13) are used."""
     g = p["glass"]
@@ -251,7 +263,10 @@ def write_block_textures():
         beam_texture(p).save(os.path.join(d, "beam.png"))
         for on, suffix in ((False, "off"), (True, "on")):
             bevel_texture(p, on).save(os.path.join(d, "bevel_%s.png" % suffix))
-            port_texture(p, on).save(os.path.join(d, "port_%s.png" % suffix))
+            port = port_texture(p, on)
+            port.save(os.path.join(d, "port_%s.png" % suffix))
+            for pct in PANEL_FADE_STEPS:
+                faded(port.im, pct).save(os.path.join(d, "port_%s_a%d.png" % (suffix, pct)))
             fallback_icon(p, on).save(os.path.join(d, "fallback_%s.png" % suffix))
         glass_texture(p).save(os.path.join(d, "glass.png"))
         arc_texture(p).save(os.path.join(d, "arcs.png"))

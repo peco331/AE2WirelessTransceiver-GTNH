@@ -19,8 +19,9 @@ import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
  * from the frame down to a glass pane 1 unit in, and a wiring panel in the
  * middle reaching from the surface to the glass. Pass 0 draws the solid parts,
  * pass 1 the glass and, while online, the full-bright arc overlay on it. A
- * wiring panel made see-through in the config moves to pass 1 (or is left
- * out at 0 %). TransceiverEffectsRenderer draws the black hole inside.
+ * wiring panel made see-through in the config moves to pass 1 with a faded
+ * texture (or is left out at 0 %). TransceiverEffectsRenderer draws the black
+ * hole inside; the item, which has no tile entity, gets a dark inner box.
  */
 public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHandler {
 
@@ -80,6 +81,7 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
         boolean[] culled = new boolean[6];
         t.startDrawingQuads();
         renderSolid(q, icons, true, outer, culled, 0);
+        interior(q, icons);
         t.draw();
         t.startDrawingQuads();
         renderGlass(q, icons, true, outer, culled, 0);
@@ -153,8 +155,8 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
         for (ForgeDirection face : FACES) {
             bevels(q, face, bevel, own);
         }
-        if (ModConfig.clientPanelOpacity >= 100) {
-            panels(q, port, outer, culled, own, 1);
+        if (panelLevel() >= 10) {
+            panels(q, port, outer, culled, own, false);
         }
         double lo = 8 - CORE, top = 8 + CORE;
         for (ForgeDirection side : FACES) {
@@ -162,8 +164,34 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
         }
     }
 
-    /** The wiring panel on every face, from the surface down to the glass. */
-    private static void panels(QuadWriter q, IIcon port, int[] outer, boolean[] culled, int own, float alpha) {
+    /**
+     * Panel opacity in tenths: 0 hidden, 10 opaque, 1..9 a faded texture. The
+     * alpha has to come from the texture: Angelica's terrain renderer takes
+     * vertex alpha as a shade factor, so a faded vertex colour only darkens.
+     */
+    static int panelLevel() {
+        return Math.max(0, Math.min(10, Math.round(ModConfig.clientPanelOpacity / 10F)));
+    }
+
+    /**
+     * Item only: a dark box just behind the glass. The black hole is a tile
+     * entity effect, so without it the item is hollow and shows the world
+     * through its glass.
+     */
+    private static void interior(QuadWriter q, TransceiverIcons icons) {
+        double lo = BEVEL_DEPTH + 0.1, hi = 16 - lo;
+        for (ForgeDirection side : FACES) {
+            q.boxFace(side, lo, lo, lo, hi, hi, hi, PANEL_SIDE_UV, 0, icons.portOff, 0, 0.05F, 0.04F, 0.08F, 1);
+        }
+    }
+
+    /**
+     * The wiring panel on every face, from the surface down to the glass. A
+     * see-through one leaves out its back, which lies on the glass and would
+     * fight with it.
+     */
+    private static void panels(QuadWriter q, IIcon port, int[] outer, boolean[] culled, int own,
+        boolean seeThrough) {
         for (ForgeDirection face : FACES) {
             double[] a = at(face, PANEL_LO, PANEL_LO, 0);
             double[] b = at(face, PANEL_HI, PANEL_HI, BEVEL_DEPTH);
@@ -173,11 +201,14 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
                 if (side == face) {
                     if (!culled[face.ordinal()]) {
                         q.boxFace(side, x0, y0, z0, x1, y1, z1, PANEL_FRONT_UV, 0, port, outer[face.ordinal()],
-                            1, 1, 1, alpha);
+                            1, 1, 1, 1);
+                    }
+                } else if (side == face.getOpposite()) {
+                    if (!seeThrough) {
+                        q.boxFace(side, x0, y0, z0, x1, y1, z1, PANEL_BACK_UV, 0, port, own, 1, 1, 1, 1);
                     }
                 } else {
-                    q.boxFace(side, x0, y0, z0, x1, y1, z1,
-                        side == face.getOpposite() ? PANEL_BACK_UV : PANEL_SIDE_UV, 0, port, own, 1, 1, 1, alpha);
+                    q.boxFace(side, x0, y0, z0, x1, y1, z1, PANEL_SIDE_UV, 0, port, own, 1, 1, 1, 1);
                 }
             }
         }
@@ -237,9 +268,9 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
                 pane(q, face, ARC_DEPTH, icons.arcs, face.ordinal(), QuadWriter.FULL_BRIGHT);
             }
         }
-        int opacity = ModConfig.clientPanelOpacity;
-        if (opacity > 0 && opacity < 100) {
-            panels(q, online ? icons.portOn : icons.portOff, outer, culled, brightness, opacity / 100F);
+        int level = panelLevel();
+        if (level > 0 && level < 10) {
+            panels(q, icons.port(online, level), outer, culled, brightness, true);
         }
     }
 

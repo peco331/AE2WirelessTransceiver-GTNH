@@ -41,7 +41,7 @@ public class ModConfig {
     public static boolean clientRenderEffects = true;
     public static int clientEffectRenderDistance = DEFAULT_EFFECT_RENDER_DISTANCE;
     public static boolean clientSimpleBlockModel = false;
-    /** Opacity of the wiring panel in the middle of each face, 0..100 percent. */
+    /** Opacity of the wiring panel in the middle of each face, 0..100 percent (drawn in 10 % steps). */
     public static int clientPanelOpacity = 100;
     public static boolean clientGlassArcs = true;
     public static int clientLocateSeconds = DEFAULT_LOCATE_SECONDS;
@@ -164,7 +164,8 @@ public class ModConfig {
         clientSimpleBlockModel = simple.getBoolean(false);
 
         Property panel = config.get(CATEGORY_CLIENT, "panelOpacity", 100,
-            "Opacity in percent of the wiring panel in the middle of each face; lower it to see the black hole.",
+            "Opacity in percent of the wiring panel in the middle of each face, rounded to 10 % steps; "
+                + "lower it to see the black hole.",
             0, 100);
         panel.setLanguageKey("ae2wtx.config.panelOpacity");
         clientPanelOpacity = Math.max(0, Math.min(100, panel.getInt(100)));
