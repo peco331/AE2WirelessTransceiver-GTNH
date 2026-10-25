@@ -14,8 +14,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import com.mojang.authlib.GameProfile;
+import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -55,6 +57,8 @@ public class LabelNetworkRegistry extends WorldSavedData {
 
     private final Map<Key, LabelNetwork> networks = new HashMap<>();
     private final Map<EndpointRef, Key> endpointIndex = new HashMap<>();
+    /** Player-given transceiver names, kept so the locate list can show unloaded ones too. */
+    private final Map<EndpointRef, String> endpointNames = new HashMap<>();
     private final Set<PendingEndpointClear> pendingClears = new HashSet<>();
     private long nextChannel = CHANNEL_START;
     private boolean readRepairNeeded;
@@ -218,6 +222,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
         network.loadedEndpoints.add(ref);
         endpointIndex.put(ref, key);
+        changed |= putName(ref, endpoint.getEndpointName());
         network.invalidateStats();
         if (changed) {
             markDirty();
@@ -253,6 +258,66 @@ public class LabelNetworkRegistry extends WorldSavedData {
         }
     }
 
+    /** Store a registered endpoint's new name; an unregistered one keeps none. */
+    public synchronized void updateEndpointName(IWirelessEndpoint endpoint) {
+        if (endpoint == null || endpoint.getWorld() == null) {
+            return;
+        }
+        EndpointRef ref = EndpointRef.of(endpoint);
+        if (endpointIndex.containsKey(ref) && putName(ref, endpoint.getEndpointName())) {
+            markDirty();
+        }
+    }
+
+    private boolean putName(EndpointRef ref, String name) {
+        if (name == null || name.isEmpty()) {
+            return endpointNames.remove(ref) != null;
+        }
+        return !name.equals(endpointNames.put(ref, name));
+    }
+
+    /**
+     * Forget saved positions that {@code missing} reports as having no
+     * transceiver any more. Returns how many were dropped.
+     */
+    public synchronized int pruneEndpoints(Predicate<EndpointRef> missing) {
+        int pruned = 0;
+        for (Map.Entry<EndpointRef, Key> entry : new ArrayList<>(endpointIndex.entrySet())) {
+            EndpointRef ref = entry.getKey();
+            if (!missing.test(ref)) {
+                continue;
+            }
+            endpointIndex.remove(ref);
+            removeEndpoint(entry.getValue(), ref);
+            endpointNames.remove(ref);
+            pruned++;
+            AE2Wtx.LOG.info("ae2wtx: removed saved transceiver {} from frequency '{}': no transceiver there any more",
+                ref, entry.getValue().label);
+        }
+        if (pruned > 0) {
+            markDirty();
+        }
+        return pruned;
+    }
+
+    /**
+     * A saved position is stale when its dimension and chunk are loaded and
+     * the block there is no transceiver. Unloaded chunks are never judged, so
+     * this cannot load chunks or drop a transceiver that is merely far away.
+     */
+    public static boolean isMissingInLoadedChunk(EndpointRef ref) {
+        if (ref.dim == null) {
+            return false;
+        }
+        World world = DimensionManager.getWorld(ref.dim);
+        if (world == null || ref.y < 0 || ref.y > 255
+            || !world.getChunkProvider().chunkExists(ref.x >> 4, ref.z >> 4)) {
+            return false;
+        }
+        Block block = world.getBlock(ref.x, ref.y, ref.z);
+        return block != ModBlocks.blockWirelessTransceiver;
+    }
+
     public synchronized void invalidateStatsFor(IWirelessEndpoint endpoint) {
         if (endpoint == null || endpoint.getWorld() == null) {
             return;
@@ -283,6 +348,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
     }
 
     private boolean removeEndpoint(Key key, EndpointRef ref) {
+        endpointNames.remove(ref);
         LabelNetwork old = networks.get(key);
         if (old == null || !old.endpoints.remove(ref)) {
             return false;
@@ -345,6 +411,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
 
             for (EndpointRef ref : snapshot) {
                 endpointIndex.remove(ref);
+                endpointNames.remove(ref);
                 boolean cleared = false;
                 if (ref.dim != null) {
                     World targetWorld = DimensionManager.getWorld(ref.dim);
@@ -456,7 +523,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
         List<EndpointInfo> all = new ArrayList<>(network.endpoints.size());
         for (EndpointRef ref : network.endpoints) {
             all.add(new EndpointInfo(ref.dim == null ? 0 : ref.dim, ref.x, ref.y, ref.z,
-                network.loadedEndpoints.contains(ref)));
+                network.loadedEndpoints.contains(ref), endpointNames.get(ref)));
         }
         all.sort(Comparator.<EndpointInfo>comparingInt(e -> e.dim)
             .thenComparingInt(e -> e.x)
@@ -524,6 +591,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         this.readRepairNeeded = false;
+        this.endpointNames.clear();
         int loadedVersion = tag.hasKey("dataVersion") ? tag.getInteger("dataVersion") : 1;
         String loadedScope = tag.hasKey("scopeMode") ? tag.getString("scopeMode") : "legacy";
         long savedNextChannel = tag.getLong("nextChannel");
@@ -551,7 +619,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
                     ? nbt.getInteger("originDim")
                     : dim == null ? 0 : dim;
                 LabelNetwork net = new LabelNetwork(dim, label, owner, channel, originDim);
-                if (net.loadEndpoints(nbt.getTagList("endpoints", 10))) {
+                if (net.loadEndpoints(nbt.getTagList("endpoints", 10), endpointNames)) {
                     this.readRepairNeeded = true;
                 }
                 if (!nbt.hasKey("originDim", 99) && dim == null && !net.endpoints.isEmpty()) {
@@ -619,7 +687,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
             nbt.setString("owner", e.getKey().owner.toString());
             nbt.setLong("channel", e.getValue().channel);
             nbt.setInteger("originDim", e.getValue().originDim);
-            nbt.setTag("endpoints", e.getValue().saveEndpoints());
+            nbt.setTag("endpoints", e.getValue().saveEndpoints(endpointNames));
             list.appendTag(nbt);
         }
         tag.setTag("networks", list);
@@ -759,6 +827,7 @@ public class LabelNetworkRegistry extends WorldSavedData {
                 }
             }
         }
+        endpointNames.keySet().retainAll(endpointIndex.keySet());
     }
 
     /* ===================== types ===================== */
@@ -870,13 +939,16 @@ public class LabelNetworkRegistry extends WorldSavedData {
         public final int z;
         /** The transceiver's chunk is loaded and it holds a runtime link. */
         public final boolean online;
+        /** Player-given name, or "" when it has none. */
+        public final String name;
 
-        public EndpointInfo(int dim, int x, int y, int z, boolean online) {
+        public EndpointInfo(int dim, int x, int y, int z, boolean online, String name) {
             this.dim = dim;
             this.x = x;
             this.y = y;
             this.z = z;
             this.online = online;
+            this.name = name == null ? "" : name;
         }
     }
 
@@ -1102,21 +1174,32 @@ public class LabelNetworkRegistry extends WorldSavedData {
             nextVirtualNodeRetryTick = Math.max(nextVirtualNodeRetryTick, worldTime + 100L);
         }
 
-        private NBTTagList saveEndpoints() {
+        private NBTTagList saveEndpoints(Map<EndpointRef, String> names) {
             NBTTagList list = new NBTTagList();
             for (EndpointRef ref : endpoints) {
-                list.appendTag(ref.save());
+                NBTTagCompound tag = ref.save();
+                String name = names.get(ref);
+                if (name != null) {
+                    tag.setString("name", name);
+                }
+                list.appendTag(tag);
             }
             return list;
         }
 
-        private boolean loadEndpoints(NBTTagList list) {
+        private boolean loadEndpoints(NBTTagList list, Map<EndpointRef, String> names) {
             endpoints.clear();
             boolean repaired = false;
             for (int i = 0; i < list.tagCount(); i++) {
                 try {
-                    if (!endpoints.add(EndpointRef.load(list.getCompoundTagAt(i)))) {
+                    NBTTagCompound tag = list.getCompoundTagAt(i);
+                    EndpointRef ref = EndpointRef.load(tag);
+                    if (!endpoints.add(ref)) {
                         repaired = true;
+                    }
+                    String name = TransceiverNames.clean(tag.getString("name"));
+                    if (name != null) {
+                        names.put(ref, name);
                     }
                 } catch (RuntimeException badEndpoint) {
                     repaired = true;

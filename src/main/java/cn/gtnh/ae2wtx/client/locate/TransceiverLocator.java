@@ -22,6 +22,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 
 import org.lwjgl.opengl.GL11;
 
+import cn.gtnh.ae2wtx.config.ModConfig;
 import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -30,16 +31,16 @@ import cpw.mods.fml.relauncher.SideOnly;
 
 /**
  * Client-side locate view, modelled on AE2's pattern-provider highlighter:
- * the located transceivers are outlined through walls for a while, and the
- * chat lists them with click-to-fill teleport commands. Targets in another
- * dimension are kept and become visible once the player enters it.
+ * the located transceivers are outlined (through walls by default) for the
+ * configured time, and the chat lists them with click-to-fill teleport
+ * commands. Targets in another dimension are kept and become visible once
+ * the player enters it.
  */
 @SideOnly(Side.CLIENT)
 public final class TransceiverLocator {
 
     public static final TransceiverLocator INSTANCE = new TransceiverLocator();
 
-    private static final long HIGHLIGHT_MILLIS = 60_000L;
     private static final int CHAT_LINES = 8;
 
     /** dimension id -> outlined positions in it */
@@ -70,12 +71,13 @@ public final class TransceiverLocator {
         for (LabelNetworkRegistry.EndpointInfo e : located) {
             targets.computeIfAbsent(e.dim, d -> new ArrayList<>()).add(e);
         }
-        expiresAt = System.currentTimeMillis() + HIGHLIGHT_MILLIS;
-        printChat(player, label, located, total, dimensionNames);
+        int seconds = ModConfig.clientLocateSeconds;
+        expiresAt = System.currentTimeMillis() + seconds * 1000L;
+        printChat(player, label, located, total, dimensionNames, seconds);
     }
 
     private void printChat(EntityPlayer player, String label, List<LabelNetworkRegistry.EndpointInfo> located,
-        int total, Map<Integer, String> dimensionNames) {
+        int total, Map<Integer, String> dimensionNames, int seconds) {
         int here = player.dimension;
         List<LabelNetworkRegistry.EndpointInfo> sorted = new ArrayList<>(located);
         // this dimension first, nearest first; other dimensions after, in id order
@@ -83,7 +85,7 @@ public final class TransceiverLocator {
             .thenComparingInt(e -> e.dim == here ? 0 : e.dim)
             .thenComparingDouble(e -> e.dim == here ? distanceSq(player, e) : 0));
         IChatComponent header = new ChatComponentTranslation("ae2wtx.locate.header", label, located.size(),
-            HIGHLIGHT_MILLIS / 1000);
+            seconds);
         header.getChatStyle().setColor(EnumChatFormatting.LIGHT_PURPLE);
         player.addChatMessage(header);
         boolean crossDimTeleport = Loader.isModLoaded("serverutilities");
@@ -116,10 +118,14 @@ public final class TransceiverLocator {
         IChatComponent suffix = new ChatComponentText("  (" + where + ")");
         suffix.getChatStyle().setColor(EnumChatFormatting.GRAY);
         line.appendSibling(dot);
+        if (!e.name.isEmpty()) {
+            line.appendSibling(new ChatComponentText(e.name + "  "));
+        }
         line.appendSibling(coords);
         line.appendSibling(suffix);
 
-        IChatComponent hover = new ChatComponentText(dimName + "  " + e.x + ", " + e.y + ", " + e.z + "\n");
+        IChatComponent hover = new ChatComponentText(
+            (e.name.isEmpty() ? "" : e.name + "\n") + dimName + "  " + e.x + ", " + e.y + ", " + e.z + "\n");
         hover.appendSibling(new ChatComponentTranslation(
             e.online ? "ae2wtx.locate.online" : "ae2wtx.locate.offline"));
         String command = null;
@@ -188,7 +194,11 @@ public final class TransceiverLocator {
         GL11.glDisable(GL11.GL_TEXTURE_2D);
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glDisable(GL11.GL_CULL_FACE);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        if (ModConfig.clientLocateThroughWalls) {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+        } else {
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+        }
         GL11.glDepthMask(false);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);

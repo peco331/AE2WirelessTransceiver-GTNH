@@ -2,6 +2,7 @@ package cn.gtnh.ae2wtx.config;
 
 import java.io.File;
 import java.math.BigInteger;
+import java.util.Arrays;
 
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.common.config.Property;
@@ -26,37 +27,50 @@ public class ModConfig {
     public static double wirelessTransceiverIdlePower = 10.0;
     public static int wirelessMaxBandsPerOwner = DEFAULT_MAX_BANDS_PER_OWNER;
     public static int wirelessMaxBandsPerWorld = DEFAULT_MAX_BANDS_PER_WORLD;
+    /** Drop saved transceiver positions whose loaded chunk holds no transceiver any more. */
+    public static boolean wirelessPruneMissingTransceivers = true;
 
     /**
      * Client look (category "client"; read but unused on a dedicated server).
-     * Changing one rebuilds the rendered chunks.
+     * Changing a value baked into the chunk meshes rebuilds them.
      */
     public static final String CATEGORY_CLIENT = "client";
     public static final int DEFAULT_EFFECT_RENDER_DISTANCE = 32;
+    public static final int DEFAULT_LOCATE_SECONDS = 60;
     public static boolean clientDefaultThemeLight = false;
     public static boolean clientRenderEffects = true;
     public static int clientEffectRenderDistance = DEFAULT_EFFECT_RENDER_DISTANCE;
     public static boolean clientSimpleBlockModel = false;
+    /** Opacity of the wiring panel in the middle of each face, 0..100 percent. */
+    public static int clientPanelOpacity = 100;
+    public static boolean clientGlassArcs = true;
+    public static int clientLocateSeconds = DEFAULT_LOCATE_SECONDS;
+    public static boolean clientLocateThroughWalls = true;
 
     private static boolean initialLoadDone = false;
 
     public static void load(File file) {
         config = new Configuration(file);
         initialLoadDone = false;
-        syncValues(true);
+        syncValues(true, true);
     }
 
     /**
      * (Re)read values from the Configuration.
-     * @param initialLoad true on game/server startup; false on in-game config GUI changes.
+     * @param initialLoad true on game/server startup; false on later reloads.
+     * @param fromDisk re-read the file first (startup, /ae2wtx reload). The in-game
+     *     config GUI has already written its edits into the in-memory properties,
+     *     so reading the file there would throw them away.
      */
-    public static synchronized void syncValues(boolean initialLoad) {
+    public static synchronized void syncValues(boolean initialLoad, boolean fromDisk) {
         if (config == null) {
             return;
         }
         double previousIdlePower = wirelessTransceiverIdlePower;
         try {
-            config.load();
+            if (fromDisk) {
+                config.load();
+            }
             config.getCategory("wireless").remove("wirelessMaxRange");
 
             Property propCrossDim = config.get("wireless", "wirelessCrossDimEnable", true,
@@ -89,6 +103,15 @@ public class ModConfig {
                 DEFAULT_MAX_BANDS_PER_WORLD,
                 MAX_BANDS_PER_WORLD_LIMIT,
                 "Maximum total number of frequencies in this world save. 0 disables creation of all new frequencies.");
+
+            Property prune = config.get("wireless", "pruneMissingTransceivers", true,
+                "Remove saved transceiver positions from a frequency when their chunk is loaded but no transceiver "
+                    + "is there any more (left behind by older versions or external world edits).");
+            prune.setLanguageKey("ae2wtx.config.pruneMissingTransceivers");
+            wirelessPruneMissingTransceivers = prune.getBoolean(true);
+            config.setCategoryPropertyOrder("wireless", Arrays.asList("wirelessCrossDimEnable",
+                "wirelessTransceiverIdlePower", "wirelessMaxBandsPerOwner", "wirelessMaxBandsPerWorld",
+                "pruneMissingTransceivers"));
 
             syncClientValues();
 
@@ -139,6 +162,31 @@ public class ModConfig {
             "Render transceivers as a plain textured cube (vanilla renderer, no effects).");
         simple.setLanguageKey("ae2wtx.config.simpleBlockModel");
         clientSimpleBlockModel = simple.getBoolean(false);
+
+        Property panel = config.get(CATEGORY_CLIENT, "panelOpacity", 100,
+            "Opacity in percent of the wiring panel in the middle of each face; lower it to see the black hole.",
+            0, 100);
+        panel.setLanguageKey("ae2wtx.config.panelOpacity");
+        clientPanelOpacity = Math.max(0, Math.min(100, panel.getInt(100)));
+
+        Property arcs = config.get(CATEGORY_CLIENT, "glassArcs", true,
+            "Draw the flickering arcs on the glass of online transceivers.");
+        arcs.setLanguageKey("ae2wtx.config.glassArcs");
+        clientGlassArcs = arcs.getBoolean(true);
+
+        Property locate = config.get(CATEGORY_CLIENT, "locateSeconds", DEFAULT_LOCATE_SECONDS,
+            "How long located transceivers stay highlighted, in seconds.", 5, 600);
+        locate.setLanguageKey("ae2wtx.config.locateSeconds");
+        clientLocateSeconds = Math.max(5, Math.min(600, locate.getInt(DEFAULT_LOCATE_SECONDS)));
+
+        Property walls = config.get(CATEGORY_CLIENT, "locateThroughWalls", true,
+            "Show the locate highlight through blocks.");
+        walls.setLanguageKey("ae2wtx.config.locateThroughWalls");
+        clientLocateThroughWalls = walls.getBoolean(true);
+
+        config.setCategoryPropertyOrder(CATEGORY_CLIENT, Arrays.asList("defaultTheme", "panelOpacity",
+            "glassArcs", "renderEffects", "effectRenderDistance", "simpleBlockModel", "locateSeconds",
+            "locateThroughWalls"));
     }
 
     private static int getClampedInt(String key, int defaultValue, int maxValue, String comment) {

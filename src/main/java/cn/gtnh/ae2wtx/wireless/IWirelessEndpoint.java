@@ -24,4 +24,9 @@ public interface IWirelessEndpoint {
 
     /** Whether the endpoint was removed/destroyed; used to stop connections on unload. */
     boolean isEndpointRemoved();
+
+    /** Player-given name shown in the locate list, or null. */
+    default String getEndpointName() {
+        return null;
+    }
 }

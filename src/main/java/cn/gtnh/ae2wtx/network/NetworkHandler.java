@@ -49,6 +49,11 @@ public final class NetworkHandler {
             TransceiverThemePacket.class,
             nextId++,
             Side.SERVER);
+        CHANNEL.registerMessage(
+            TransceiverRenamePacket.Handler.class,
+            TransceiverRenamePacket.class,
+            nextId++,
+            Side.SERVER);
         AE2Wtx.LOG.info("ae2wtx network channel initialized");
     }
 }

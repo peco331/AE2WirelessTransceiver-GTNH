@@ -7,7 +7,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.DimensionManager;
 
+import cn.gtnh.ae2wtx.config.ModConfig;
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
+import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 
@@ -16,7 +18,11 @@ public final class ServerTaskQueueTickHandler {
 
     private static final AtomicBoolean IDLE_POWER_REFRESH_REQUESTED = new AtomicBoolean();
 
+    /** Ticks between sweeps for saved transceivers that are gone (30 s). */
+    private static final int PRUNE_INTERVAL_TICKS = 600;
+
     private int cleanupTick;
+    private int pruneTick;
 
     /** Safe to call from the client config event or the server command thread. */
     public static void requestIdlePowerRefresh() {
@@ -34,6 +40,22 @@ public final class ServerTaskQueueTickHandler {
                 cleanupTick = 0;
                 ServerTaskQueue.cleanRateLimiters();
             }
+            if (++pruneTick >= PRUNE_INTERVAL_TICKS) {
+                pruneTick = 0;
+                pruneMissingTransceivers();
+            }
+        }
+    }
+
+    /** Only loaded chunks are checked, so a transceiver is judged once a player is near it. */
+    private static void pruneMissingTransceivers() {
+        if (!ModConfig.wirelessPruneMissingTransceivers) {
+            return;
+        }
+        WorldServer overworld = DimensionManager.getWorld(0);
+        LabelNetworkRegistry registry = overworld == null ? null : LabelNetworkRegistry.getExisting(overworld);
+        if (registry != null) {
+            registry.pruneEndpoints(LabelNetworkRegistry::isMissingInLoadedChunk);
         }
     }
 

@@ -1,10 +1,17 @@
 package cn.gtnh.ae2wtx.content.wireless;
 
-/** How synced channel figures map onto the sparks orbiting the black hole. */
+/**
+ * How synced channel figures map onto the sparks orbiting the black hole.
+ * The eight sparks stand for the frequency's capacity (four channels each at
+ * the usual 32): the lit ones show what the whole frequency uses, and the
+ * share this transceiver carries burns brighter.
+ */
 public final class TransceiverVisuals {
 
     public static final int SPARKS = 8;
     public static final int CHANNELS_PER_SPARK = 4;
+    /** At or above this the channel limit is AE2's "infinite" mode. */
+    public static final int UNLIMITED_CHANNELS = 1_000_000;
 
     /** Frequency load at which the sparks turn from purple to orange. */
     public static final double WARN_RATIO = 0.75D;
@@ -17,12 +24,19 @@ public final class TransceiverVisuals {
 
     private TransceiverVisuals() {}
 
-    /** One spark per started block of four channels this transceiver carries, at most eight. */
-    public static int litSparks(int channels) {
+    /**
+     * Sparks for a channel count: every started eighth of {@code maxChannels}
+     * lights one. Without a channel limit every started block of four does.
+     */
+    public static int litSparks(int channels, int maxChannels) {
         if (channels <= 0) {
             return 0;
         }
-        return Math.min(SPARKS, (channels + CHANNELS_PER_SPARK - 1) / CHANNELS_PER_SPARK);
+        if (maxChannels <= 0 || maxChannels >= UNLIMITED_CHANNELS) {
+            return Math.min(SPARKS, (channels + CHANNELS_PER_SPARK - 1) / CHANNELS_PER_SPARK);
+        }
+        long scaled = ((long) channels * SPARKS + maxChannels - 1) / maxChannels;
+        return (int) Math.min(SPARKS, scaled);
     }
 
     /**

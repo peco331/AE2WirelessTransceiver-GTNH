@@ -7,7 +7,7 @@ import cn.gtnh.ae2wtx.config.ModConfig;
 import cpw.mods.fml.client.event.ConfigChangedEvent;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 
-/** Reloads runtime-safe values after the client-side Forge config screen saves them. */
+/** Applies and saves the values the client-side Forge config screen has just edited. */
 public final class ClientConfigChangedHandler {
 
     @SubscribeEvent
@@ -17,11 +17,15 @@ public final class ClientConfigChangedHandler {
         }
         boolean light = ModConfig.clientDefaultThemeLight;
         boolean simple = ModConfig.clientSimpleBlockModel;
-        ModConfig.syncValues(false);
+        int panel = ModConfig.clientPanelOpacity;
+        boolean arcs = ModConfig.clientGlassArcs;
+        // the screen wrote into the in-memory properties: apply them, do not re-read the file
+        ModConfig.syncValues(false, false);
         // the block shape and textures are baked into the chunk meshes
         Minecraft mc = Minecraft.getMinecraft();
-        if ((light != ModConfig.clientDefaultThemeLight || simple != ModConfig.clientSimpleBlockModel)
-            && mc.renderGlobal != null) {
+        boolean meshChanged = light != ModConfig.clientDefaultThemeLight || simple != ModConfig.clientSimpleBlockModel
+            || panel != ModConfig.clientPanelOpacity || arcs != ModConfig.clientGlassArcs;
+        if (meshChanged && mc.renderGlobal != null) {
             mc.renderGlobal.loadRenderers();
         }
     }

@@ -9,14 +9,25 @@ import org.junit.Test;
 public class TransceiverVisualsTest {
 
     @Test
-    public void oneSparkPerStartedBlockOfFourChannels() {
-        assertEquals(0, TransceiverVisuals.litSparks(0));
-        assertEquals(0, TransceiverVisuals.litSparks(-3));
-        assertEquals(1, TransceiverVisuals.litSparks(1));
-        assertEquals(1, TransceiverVisuals.litSparks(4));
-        assertEquals(2, TransceiverVisuals.litSparks(5));
-        assertEquals(8, TransceiverVisuals.litSparks(32));
-        assertEquals(8, TransceiverVisuals.litSparks(33));
+    public void oneSparkPerStartedEighthOfTheCapacity() {
+        assertEquals(0, TransceiverVisuals.litSparks(0, 32));
+        assertEquals(0, TransceiverVisuals.litSparks(-3, 32));
+        assertEquals(1, TransceiverVisuals.litSparks(1, 32));
+        assertEquals(1, TransceiverVisuals.litSparks(4, 32));
+        assertEquals(2, TransceiverVisuals.litSparks(5, 32));
+        assertEquals(7, TransceiverVisuals.litSparks(27, 32));
+        assertEquals(8, TransceiverVisuals.litSparks(32, 32));
+        assertEquals(8, TransceiverVisuals.litSparks(33, 32));
+        assertEquals(1, TransceiverVisuals.litSparks(8, 64));
+        assertEquals(2, TransceiverVisuals.litSparks(9, 64));
+        assertEquals(8, TransceiverVisuals.litSparks(Integer.MAX_VALUE, 32));
+    }
+
+    @Test
+    public void withoutALimitEverySparkIsFourChannels() {
+        assertEquals(1, TransceiverVisuals.litSparks(3, 0));
+        assertEquals(2, TransceiverVisuals.litSparks(5, -1));
+        assertEquals(8, TransceiverVisuals.litSparks(40, Integer.MAX_VALUE));
     }
 
     @Test

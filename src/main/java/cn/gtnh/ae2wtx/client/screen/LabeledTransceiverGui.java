@@ -29,8 +29,10 @@ import cn.gtnh.ae2wtx.network.LabelEndpointsRequestPacket;
 import cn.gtnh.ae2wtx.network.LabelListRequestPacket;
 import cn.gtnh.ae2wtx.network.LabelListResponsePacket;
 import cn.gtnh.ae2wtx.network.NetworkHandler;
+import cn.gtnh.ae2wtx.network.TransceiverRenamePacket;
 import cn.gtnh.ae2wtx.network.TransceiverThemePacket;
 import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
+import cn.gtnh.ae2wtx.wireless.TransceiverNames;
 
 /**
  * Label management GUI for the labeled wireless transceiver (256x198, AE2
@@ -55,9 +57,11 @@ public class LabeledTransceiverGui extends GuiContainer {
     private static final int BTN_ROW1_Y = 97;
     private static final int BTN_ROW2_Y = 115;
     private static final int BTN_ROW3_Y = 133;
-    /** 12x12 theme toggle in the title bar; sprites at u=112/124, glyphs on v=212. */
+    /** 12x12 title-bar buttons (rename, theme); sprites at u=112/124, glyphs on v=212. */
     private static final int THEME_X = 238;
     private static final int THEME_Y = 4;
+    private static final int RENAME_X = 224;
+    private static final int GLYPH_RENAME = 136;
     private static final int ICON_BTN = 12;
     private static final int ICON_BTN_U = 112;
     private static final int ICON_BTN_U_HOVER = 124;
@@ -104,7 +108,11 @@ public class LabeledTransceiverGui extends GuiContainer {
     private IconButton disconnectButton;
     private IconButton modeButton;
     private IconButton locateButton;
-    private ThemeButton themeButton;
+    private TitleButton themeButton;
+    private TitleButton renameButton;
+    /** Replaces the title while the player names this transceiver. */
+    private GuiTextField nameBox;
+    private boolean renaming = false;
     private final List<Entry> entries = new ArrayList<>();
     private final List<Entry> filtered = new ArrayList<>();
     private int scrollOffset = 0;
@@ -213,8 +221,17 @@ public class LabeledTransceiverGui extends GuiContainer {
         buttonList.add(disconnectButton);
         buttonList.add(modeButton);
         buttonList.add(locateButton);
-        themeButton = new ThemeButton(6, guiLeft + THEME_X, guiTop + THEME_Y);
+        themeButton = new TitleButton(6, guiLeft + THEME_X, guiTop + THEME_Y, this::themeGlyph);
         buttonList.add(themeButton);
+        renameButton = new TitleButton(7, guiLeft + RENAME_X, guiTop + THEME_Y, () -> GLYPH_RENAME);
+        buttonList.add(renameButton);
+        // initGui runs again on a window resize: keep what is being typed
+        String typed = nameBox == null ? currentName() : nameBox.getText();
+        nameBox = new GuiTextField(fontRendererObj, guiLeft + 7, guiTop + 5, RENAME_X - 11, 10);
+        nameBox.setMaxStringLength(TransceiverNames.MAX_LENGTH);
+        nameBox.setCanLoseFocus(false);
+        nameBox.setText(typed);
+        nameBox.setFocused(renaming);
         initialRequestPending = true;
         updateActionButtons();
     }
@@ -437,6 +454,13 @@ public class LabeledTransceiverGui extends GuiContainer {
             case 6: // theme
                 cycleTheme();
                 break;
+            case 7: // rename: opens the name box, a second click saves
+                if (renaming) {
+                    finishRename(true);
+                } else {
+                    startRename();
+                }
+                break;
             default:
                 break;
         }
@@ -513,14 +537,14 @@ public class LabeledTransceiverGui extends GuiContainer {
         applyEndpointFilter();
     }
 
-    /** Client-side filter over coordinates and dimension names. */
+    /** Client-side filter over names, coordinates and dimension names. */
     private void applyEndpointFilter() {
         String query = searchBox.getText() == null ? ""
             : searchBox.getText().trim().toLowerCase(java.util.Locale.ROOT);
         endpointFiltered.clear();
         java.util.Set<String> present = new java.util.HashSet<>();
         for (LabelNetworkRegistry.EndpointInfo e : endpoints) {
-            String haystack = (e.x + ", " + e.y + ", " + e.z + " " + e.x + " " + e.y + " " + e.z + " "
+            String haystack = (e.name + " " + e.x + ", " + e.y + ", " + e.z + " " + e.x + " " + e.y + " " + e.z + " "
                 + dimName(e.dim) + " dim " + e.dim).toLowerCase(java.util.Locale.ROOT);
             if (query.isEmpty() || haystack.contains(query)) {
                 endpointFiltered.add(e);
@@ -587,6 +611,17 @@ public class LabeledTransceiverGui extends GuiContainer {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
+        if (renaming) {
+            // every key belongs to the name box; Esc only leaves it, it does not close the GUI
+            if (keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_NUMPADENTER) {
+                finishRename(true);
+            } else if (keyCode == Keyboard.KEY_ESCAPE) {
+                finishRename(false);
+            } else {
+                nameBox.textboxKeyTyped(typedChar, keyCode);
+            }
+            return;
+        }
         String before = searchBox.getText();
         if (searchBox.textboxKeyTyped(typedChar, keyCode)) {
             if (!java.util.Objects.equals(before, searchBox.getText())) {
@@ -604,6 +639,9 @@ public class LabeledTransceiverGui extends GuiContainer {
     @Override
     public void updateScreen() {
         super.updateScreen();
+        if (renaming) {
+            nameBox.updateCursorCounter();
+        }
         // NetHandlerPlayClient assigns the server window id only after
         // displayGuiScreen/initGui returns. Sending in initGui therefore used
         // window id 0 and the server correctly rejected the first list request.
@@ -671,6 +709,16 @@ public class LabeledTransceiverGui extends GuiContainer {
 
     @Override
     public void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        if (renaming) {
+            if (isOver(nameBox.xPosition, nameBox.yPosition, nameBox.width, nameBox.height, mouseX, mouseY)) {
+                nameBox.mouseClicked(mouseX, mouseY, mouseButton);
+                return;
+            }
+            if (!renameButton.isMouseOver(mouseX, mouseY)) {
+                // clicking anywhere else keeps what was typed
+                finishRename(true);
+            }
+        }
         super.mouseClicked(mouseX, mouseY, mouseButton);
         searchBox.mouseClicked(mouseX, mouseY, mouseButton);
         if (endpointMode) {
@@ -763,6 +811,9 @@ public class LabeledTransceiverGui extends GuiContainer {
         mc.getTextureManager().bindTexture(TEX);
         drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize);
 
+        if (renaming) {
+            nameBox.drawTextBox();
+        }
         searchBox.drawTextBox();
         if (searchBox.getText().isEmpty() && !searchBox.isFocused()) {
             String hint = StatCollector.translateToLocal(endpointMode
@@ -784,6 +835,51 @@ public class LabeledTransceiverGui extends GuiContainer {
         return te instanceof LabeledWirelessTransceiverBlockEntity
             ? ((LabeledWirelessTransceiverBlockEntity) te).getTheme()
             : TransceiverTheme.DEFAULT;
+    }
+
+    private int themeGlyph() {
+        TransceiverTheme theme = currentTheme();
+        return theme == TransceiverTheme.DARK ? 112 : theme == TransceiverTheme.LIGHT ? 120 : 128;
+    }
+
+    /** This transceiver's name from the synced tile, "" when it has none. */
+    private String currentName() {
+        net.minecraft.tileentity.TileEntity te = player.worldObj.getTileEntity(x, y, z);
+        String name = te instanceof LabeledWirelessTransceiverBlockEntity
+            ? ((LabeledWirelessTransceiverBlockEntity) te).getCustomName()
+            : null;
+        return name == null ? "" : name;
+    }
+
+    private void startRename() {
+        renaming = true;
+        searchBox.setFocused(false);
+        nameBox.setText(currentName());
+        nameBox.setFocused(true);
+        nameBox.setCursorPositionEnd();
+    }
+
+    /** Leave the name box; when saving, send the name if it changed (empty clears it). */
+    private void finishRename(boolean save) {
+        if (!renaming) {
+            return;
+        }
+        renaming = false;
+        nameBox.setFocused(false);
+        String name = TransceiverNames.clean(nameBox.getText());
+        if (save && !java.util.Objects.equals(name == null ? "" : name, currentName())) {
+            NetworkHandler.CHANNEL.sendToServer(
+                new TransceiverRenamePacket(dimension, x, y, z, container.windowId, name));
+        }
+    }
+
+    private List<String> renameTooltip() {
+        List<String> tip = new ArrayList<>();
+        tip.add(StatCollector.translateToLocal(renaming ? "gui.ae2wtx.labeled_wireless.rename.save"
+            : "gui.ae2wtx.labeled_wireless.rename"));
+        tip.add("§7" + StatCollector.translateToLocal(renaming ? "gui.ae2wtx.labeled_wireless.rename.keys"
+            : "gui.ae2wtx.labeled_wireless.rename.hint"));
+        return tip;
     }
 
     /** The server stores it and syncs the tile back; the button follows the synced tile. */
@@ -813,11 +909,18 @@ public class LabeledTransceiverGui extends GuiContainer {
             drawHoveringText(themeTooltip(), mouseX, mouseY, fontRendererObj);
             return;
         }
+        if (renameButton != null && renameButton.isMouseOver(mouseX, mouseY)) {
+            drawHoveringText(renameTooltip(), mouseX, mouseY, fontRendererObj);
+            return;
+        }
         LabelNetworkRegistry.EndpointInfo e = hoveredEndpoint(mouseX, mouseY);
         if (e == null) {
             return;
         }
         List<String> tip = new ArrayList<>();
+        if (!e.name.isEmpty()) {
+            tip.add(e.name);
+        }
         tip.add(dimName(e.dim));
         tip.add(e.x + ", " + e.y + ", " + e.z);
         tip.add(StatCollector.translateToLocal(e.online ? "ae2wtx.locate.online" : "ae2wtx.locate.offline"));
@@ -835,7 +938,15 @@ public class LabeledTransceiverGui extends GuiContainer {
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // the foreground layer is translated to the GUI origin: relative coordinates
         float scale = getScale();
-        drawScaledText(StatCollector.translateToLocal("tile.ae2wtx.labeled_wireless_transceiver.name"), 8, 8, scale, 0x404040);
+        if (!renaming) {
+            // the player-given name, else the block name
+            String name = currentName();
+            String title = name.isEmpty()
+                ? StatCollector.translateToLocal("tile.ae2wtx.labeled_wireless_transceiver.name")
+                : name;
+            int width = (int) ((RENAME_X - 12) / Math.max(0.0001F, scale));
+            drawScaledText(fontRendererObj.trimStringToWidth(title, width), 8, 8, scale, 0x404040);
+        }
         drawInfo(scale);
         drawButtonTexts();
         drawStatus(scale);
@@ -959,8 +1070,10 @@ public class LabeledTransceiverGui extends GuiContainer {
                 e.dim == dimension ? distanceTo(e) + "m" : dimName(e.dim), 48);
             int rightW = fontRendererObj.getStringWidth(right);
             fontRendererObj.drawString(right, baseX + LIST_W - 2 - rightW, ty, 0x707070);
-            String coords = fontRendererObj.trimStringToWidth(e.x + ", " + e.y + ", " + e.z, LIST_W - 15 - rightW);
-            fontRendererObj.drawString(coords, baseX + 10, ty, self ? 0x1B5E20 : 0x303030);
+            // a named transceiver shows its name; the coordinates move to the tooltip
+            String text = e.name.isEmpty() ? e.x + ", " + e.y + ", " + e.z : e.name;
+            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(text, LIST_W - 15 - rightW), baseX + 10, ty,
+                self ? 0x1B5E20 : 0x303030);
         }
     }
 
@@ -1054,6 +1167,10 @@ public class LabeledTransceiverGui extends GuiContainer {
         drawRect(x0, y0, x1, y1, active ? 0xFF555555 : 0xFF6E6E6E);
         drawRect(x0, y0, x1 - 1, y1 - 1, active ? 0xFFFFFFFF : 0xFF9A9A9A);
         drawRect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, active ? 0xFFC6C6C6 : 0xFF828282);
+    }
+
+    private static boolean isOver(int bx, int by, int bw, int bh, int mouseX, int mouseY) {
+        return mouseX >= bx && mouseY >= by && mouseX < bx + bw && mouseY < by + bh;
     }
 
     private boolean isMouseInList(int mouseX, int mouseY) {
@@ -1198,11 +1315,17 @@ public class LabeledTransceiverGui extends GuiContainer {
         }
     }
 
-    /** Title-bar toggle showing the block's theme: moon = dark, sun = light, half disc = default. */
-    private class ThemeButton extends GuiButton {
+    /**
+     * 12x12 title-bar button with an 8x8 glyph: the theme toggle (moon = dark,
+     * sun = light, half disc = default) and the rename pencil.
+     */
+    private static class TitleButton extends GuiButton {
 
-        ThemeButton(int id, int x, int y) {
+        private final java.util.function.IntSupplier glyph;
+
+        TitleButton(int id, int x, int y, java.util.function.IntSupplier glyph) {
             super(id, x, y, ICON_BTN, ICON_BTN, "");
+            this.glyph = glyph;
         }
 
         boolean isMouseOver(int mouseX, int mouseY) {
@@ -1215,13 +1338,11 @@ public class LabeledTransceiverGui extends GuiContainer {
             if (!visible) {
                 return;
             }
-            TransceiverTheme theme = currentTheme();
-            int glyph = theme == TransceiverTheme.DARK ? 112 : theme == TransceiverTheme.LIGHT ? 120 : 128;
             mc.getTextureManager().bindTexture(TEX);
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             drawTexturedModalRect(xPosition, yPosition, isMouseOver(mouseX, mouseY) ? ICON_BTN_U_HOVER : ICON_BTN_U,
                 ICON_BTN_V, ICON_BTN, ICON_BTN);
-            drawTexturedModalRect(xPosition + 2, yPosition + 2, glyph, GLYPH_V, GLYPH, GLYPH);
+            drawTexturedModalRect(xPosition + 2, yPosition + 2, glyph.getAsInt(), GLYPH_V, GLYPH, GLYPH);
         }
     }
 }

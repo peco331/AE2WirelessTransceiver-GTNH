@@ -18,8 +18,9 @@ import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
  * 2-wide frame on all twelve edges; on every face a shallow 45-degree bevel
  * from the frame down to a glass pane 1 unit in, and a wiring panel in the
  * middle reaching from the surface to the glass. Pass 0 draws the solid parts,
- * pass 1 the glass and, while online, the full-bright arc overlay on it.
- * TransceiverEffectsRenderer draws the black hole inside.
+ * pass 1 the glass and, while online, the full-bright arc overlay on it. A
+ * wiring panel made see-through in the config moves to pass 1 (or is left
+ * out at 0 %). TransceiverEffectsRenderer draws the black hole inside.
  */
 public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHandler {
 
@@ -75,11 +76,13 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
             t.draw();
             return;
         }
+        int[] outer = new int[6];
+        boolean[] culled = new boolean[6];
         t.startDrawingQuads();
-        renderSolid(q, icons, true, null, null, 0, 0, 0, 0);
+        renderSolid(q, icons, true, outer, culled, 0);
         t.draw();
         t.startDrawingQuads();
-        renderGlass(q, icons, true, 0);
+        renderGlass(q, icons, true, outer, culled, 0);
         drawBlended(t, true);
     }
 
@@ -114,29 +117,29 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
         TransceiverIcons icons = TransceiverIcons.forBlock(world, x, y, z);
         QuadWriter q = new QuadWriter(Tessellator.instance, x, y, z, false);
         int own = block.getMixedBrightnessForBlock(world, x, y, z);
-        if (pass == 0) {
-            renderSolid(q, icons, online, block, world, x, y, z, own);
-        } else {
-            renderGlass(q, icons, online, own);
-        }
-        return true;
-    }
-
-    /** Frame beams, bevels, wiring panels and the black stand-in core. */
-    private static void renderSolid(QuadWriter q, TransceiverIcons icons, boolean online, Block block,
-        IBlockAccess world, int x, int y, int z, int own) {
         int[] outer = new int[6];
         boolean[] culled = new boolean[6];
         for (ForgeDirection d : FACES) {
             int i = d.ordinal();
-            if (world == null) {
-                outer[i] = own;
-                continue;
-            }
             int nx = x + d.offsetX, ny = y + d.offsetY, nz = z + d.offsetZ;
             outer[i] = block.getMixedBrightnessForBlock(world, nx, ny, nz);
             culled[i] = !block.shouldSideBeRendered(world, nx, ny, nz, i);
         }
+        if (pass == 0) {
+            renderSolid(q, icons, online, outer, culled, own);
+        } else {
+            renderGlass(q, icons, online, outer, culled, own);
+        }
+        return true;
+    }
+
+    /**
+     * Frame beams, bevels, opaque wiring panels and the black stand-in core.
+     * {@code outer} is the light on each side of the block and {@code culled}
+     * the sides a neighbour hides; the inventory passes all zero / none.
+     */
+    private static void renderSolid(QuadWriter q, TransceiverIcons icons, boolean online, int[] outer,
+        boolean[] culled, int own) {
         double hi = 16 - FRAME;
         for (double a : new double[] { 0, hi }) {
             for (double b : new double[] { 0, hi }) {
@@ -149,6 +152,19 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
         IIcon port = online ? icons.portOn : icons.portOff;
         for (ForgeDirection face : FACES) {
             bevels(q, face, bevel, own);
+        }
+        if (ModConfig.clientPanelOpacity >= 100) {
+            panels(q, port, outer, culled, own, 1);
+        }
+        double lo = 8 - CORE, top = 8 + CORE;
+        for (ForgeDirection side : FACES) {
+            q.boxFace(side, lo, lo, lo, top, top, top, PANEL_SIDE_UV, 0, port, own, 0, 0, 0, 1);
+        }
+    }
+
+    /** The wiring panel on every face, from the surface down to the glass. */
+    private static void panels(QuadWriter q, IIcon port, int[] outer, boolean[] culled, int own, float alpha) {
+        for (ForgeDirection face : FACES) {
             double[] a = at(face, PANEL_LO, PANEL_LO, 0);
             double[] b = at(face, PANEL_HI, PANEL_HI, BEVEL_DEPTH);
             double x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]), z0 = Math.min(a[2], b[2]);
@@ -157,17 +173,13 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
                 if (side == face) {
                     if (!culled[face.ordinal()]) {
                         q.boxFace(side, x0, y0, z0, x1, y1, z1, PANEL_FRONT_UV, 0, port, outer[face.ordinal()],
-                            1, 1, 1, 1);
+                            1, 1, 1, alpha);
                     }
                 } else {
                     q.boxFace(side, x0, y0, z0, x1, y1, z1,
-                        side == face.getOpposite() ? PANEL_BACK_UV : PANEL_SIDE_UV, 0, port, own, 1, 1, 1, 1);
+                        side == face.getOpposite() ? PANEL_BACK_UV : PANEL_SIDE_UV, 0, port, own, 1, 1, 1, alpha);
                 }
             }
-        }
-        double lo = 8 - CORE, top = 8 + CORE;
-        for (ForgeDirection side : FACES) {
-            q.boxFace(side, lo, lo, lo, top, top, top, PANEL_SIDE_UV, 0, port, own, 0, 0, 0, 1);
         }
     }
 
@@ -212,14 +224,22 @@ public final class TransceiverBlockRenderer implements ISimpleBlockRenderingHand
         }
     }
 
-    /** Single-sided panes, so from outside only the near ones show; the arcs only while online. */
-    private static void renderGlass(QuadWriter q, TransceiverIcons icons, boolean online, int brightness) {
+    /**
+     * Single-sided panes, so from outside only the near ones show; the arcs
+     * only while online; and the wiring panels when they are see-through.
+     */
+    private static void renderGlass(QuadWriter q, TransceiverIcons icons, boolean online, int[] outer,
+        boolean[] culled, int brightness) {
         for (ForgeDirection face : FACES) {
             pane(q, face, BEVEL_DEPTH, icons.glass, 0, brightness);
-            if (online) {
+            if (online && ModConfig.clientGlassArcs) {
                 // turn the shared arc animation per face so neighbouring faces do not flicker in step
                 pane(q, face, ARC_DEPTH, icons.arcs, face.ordinal(), QuadWriter.FULL_BRIGHT);
             }
+        }
+        int opacity = ModConfig.clientPanelOpacity;
+        if (opacity > 0 && opacity < 100) {
+            panels(q, online ? icons.portOn : icons.portOff, outer, culled, brightness, opacity / 100F);
         }
     }
 

@@ -20,6 +20,7 @@ import cn.gtnh.ae2wtx.init.ModBlocks;
 import cn.gtnh.ae2wtx.wireless.IWirelessEndpoint;
 import cn.gtnh.ae2wtx.wireless.LabelLink;
 import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
+import cn.gtnh.ae2wtx.wireless.TransceiverNames;
 import appeng.api.AEApi;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridNotification;
@@ -51,6 +52,8 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     private boolean locked = false;
     private boolean beingRemoved = false;
     private TransceiverTheme theme = TransceiverTheme.DEFAULT;
+    /** Player-given name (cleaned by TransceiverNames), or null. */
+    private String customName;
 
     private UUID placerId;
     private String placerName;
@@ -419,6 +422,11 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         return beingRemoved || chunkUnloading || worldObj == null || isInvalid();
     }
 
+    @Override
+    public String getEndpointName() {
+        return customName;
+    }
+
     /* ===================== label management ===================== */
 
     public void setPlacerId(UUID placerId, String placerName) {
@@ -470,8 +478,33 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         syncToClients();
     }
 
-    /** Store a non-default theme on the dropped item so it survives disassembly. */
+    public String getCustomName() {
+        return customName;
+    }
+
+    /** Rename (null or blank clears it); the registry keeps a copy for the locate list. */
+    public void setCustomName(String rawName) {
+        String name = TransceiverNames.clean(rawName);
+        if (java.util.Objects.equals(name, customName)) {
+            return;
+        }
+        this.customName = name;
+        LabelNetworkRegistry reg = LabelNetworkRegistry.get(worldObj);
+        if (reg != null) {
+            reg.updateEndpointName(this);
+        }
+        markDirty();
+        syncToClients();
+    }
+
+    /**
+     * Carry the look through a wrench disassembly: a non-default theme as a
+     * tag, the name as the item's display name (so an anvil can name it too).
+     */
     public void writeLookToItem(ItemStack stack) {
+        if (customName != null) {
+            stack.setStackDisplayName(customName);
+        }
         if (theme == TransceiverTheme.DEFAULT) {
             return;
         }
@@ -482,8 +515,14 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     }
 
     public void readLookFromItem(ItemStack stack) {
-        if (stack != null && stack.hasTagCompound() && stack.getTagCompound().hasKey(ITEM_THEME_KEY)) {
+        if (stack == null) {
+            return;
+        }
+        if (stack.hasTagCompound() && stack.getTagCompound().hasKey(ITEM_THEME_KEY)) {
             setTheme(TransceiverTheme.fromOrdinal(stack.getTagCompound().getByte(ITEM_THEME_KEY)));
+        }
+        if (stack.hasDisplayName()) {
+            setCustomName(stack.getDisplayName());
         }
     }
 
@@ -943,6 +982,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         if (theme != TransceiverTheme.DEFAULT) {
             tag.setByte("theme", (byte) theme.ordinal());
         }
+        if (customName != null) {
+            tag.setString("name", customName);
+        }
         tag.setInteger("netCh", networkChannelsSync);
         tag.setInteger("netOn", onlineCountSync);
         if (labelForDisplay != null) {
@@ -963,6 +1005,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.locked = tag.getBoolean("locked");
         this.theme = TransceiverTheme.fromOrdinal(tag.getByte("theme"));
+        this.customName = TransceiverNames.clean(tag.getString("name"));
         if (tag.hasKey("placerId")) {
             this.placerId = parsePlacerId(tag.getString("placerId"));
         }
@@ -1011,6 +1054,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.maxChannelsSync = tag.getInteger("maxCh");
         this.locked = tag.getBoolean("locked");
         this.theme = TransceiverTheme.fromOrdinal(tag.getByte("theme"));
+        this.customName = TransceiverNames.clean(tag.getString("name"));
         this.networkChannelsSync = tag.getInteger("netCh");
         this.onlineCountSync = tag.getInteger("netOn");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;

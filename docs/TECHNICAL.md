@@ -116,7 +116,9 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - `wireless.wirelessMaxBandsPerOwner`：默认 `128`、范围 `0..10000`，限制一位所有者在当前频率作用域内创建的新频率数量。
 - `wireless.wirelessMaxBandsPerWorld`：默认 `4096`、范围 `0..100000`，限制该世界存档的频率总量。
 - 两个上限都采用“创建时”语义：`0` 禁止新建；连接已有频率、加载/修复已有端点不消耗新配额；降低上限不会删除已有数据。负值与超界整数钳制到边界并记录警告，非整数恢复默认值。
-- `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）。在游戏内 Config 改动 `defaultTheme` 或 `simpleBlockModel` 会重建已渲染区块。
+- `wireless.pruneMissingTransceivers`：默认 `true`，见 3.13。
+- `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`panelOpacity`（默认 `100`，`0..100`）、`glassArcs`（默认 `true`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）、`locateSeconds`（默认 `60`，`5..600`）、`locateThroughWalls`（默认 `true`）。在游戏内 Config 改动 `defaultTheme`、`simpleBlockModel`、`panelOpacity` 或 `glassArcs` 会重建已渲染区块。
+- 游戏内 Config 先把修改写进内存中的 `Property`，再发 `OnConfigChangedEvent`；处理器调用 `syncValues(false, false)`，**不能**再 `config.load()`，否则会从文件读回旧值、丢掉刚改的内容（1.1.1 及以前的问题）。`/ae2wtx reload` 用 `syncValues(false, true)` 从文件读取。`client` 分类直接放在配置界面第一页，`wireless` 分类在子页。
 - 客户端 Config 事件只在客户端代理中注册到 FML bus，避免 common/server 类路径引用客户端事件。它可即时刷新本地/集成服的功耗与上限；专用服务器修改 `config/ae2wtx.cfg` 后可用权限等级 2 的 `/ae2wtx reload` 即时刷新这些安全运行时值。跨维设置仍需完整重启。
 
 ### 3.11 数据包解码防御与空字符串语义区分 (Packet Decoder Hardening)
@@ -129,7 +131,13 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - 请求：`LabelEndpointsRequestPacket`（C2S）与列表请求走同一条校验（打开中的容器、8 格内、`canInteractWith`）和 `LIST` 限流队列；服务端 `LabelNetworkRegistry.listEndpoints` 按收发器所有者取该频率的已保存端点，排序（维度→x→z→y）后最多返回 512 个，同时给出真实总数。
 - 维度名在服务端解析（已加载世界的 provider，否则 `DimensionManager.createProviderFor`，失败回退 `DIM n`），随 `LabelEndpointsResponsePacket` 下发，客户端不需要认识其他维度。
 - “在线”取自 `LabelNetwork.loadedEndpoints`：区块已加载且持有运行时链接。
-- 客户端 `TransceiverLocator` 按维度保存目标，`RenderWorldLastEvent` 中关闭深度测试画脉动线框，仅渲染玩家当前维度的目标；新一次定位替换旧目标，60 秒后清除。聊天栏按“本维度按距离、其他维度按 id”排序列出前 8 条，坐标为 `SUGGEST_COMMAND`：客户端装有 `serverutilities` 时为 `/tpl x y+1 z dim`，否则仅本维度给出 `/tp x y+1 z`。命令只填入聊天栏，是否有权限执行由服务端决定。
+- 客户端 `TransceiverLocator` 按维度保存目标，`RenderWorldLastEvent` 中关闭深度测试画脉动线框，仅渲染玩家当前维度的目标；新一次定位替换旧目标，`client.locateSeconds` 秒后清除（默认 60）；`client.locateThroughWalls=false` 时保留深度测试。聊天栏按“本维度按距离、其他维度按 id”排序列出前 8 条，坐标为 `SUGGEST_COMMAND`：客户端装有 `serverutilities` 时为 `/tpl x y+1 z dim`，否则仅本维度给出 `/tp x y+1 z`。命令只填入聊天栏，是否有权限执行由服务端决定。
+
+### 3.13 收发器名字与失效端点清理
+
+- 名字：`TransceiverNames.clean` 去掉 `§` 格式代码（连同后一个字符）、控制字符和 BMP 以外的字符，去首尾空白，最长 32 个字符（网络上限 96 字节）；空名字即无名字。TE 保存在 NBT `name` 并随描述包同步；注册表在每个端点的 NBT 里另存一份 `name`（`endpointNames`），使未加载的收发器也能在定位列表中显示名字。端点被移除、频率被删除时名字一并丢弃。
+- 改名：`TransceiverRenamePacket`（C2S）走 `MUTATION` 队列和与主题包相同的校验；锁定时需 `TransceiverSecurity.canManage`。放置时物品有显示名（铁砧改名或扳手拆卸写入）则作为名字。
+- 清理：`LabelNetworkRegistry.pruneEndpoints(isMissingInLoadedChunk)` 在处理收发器列表请求前和服务端每 600 tick 执行。只有维度世界已加载、`chunkExists` 为真、且该位置方块不是收发器时才删除记录，因此不会加载区块，也不会误删远处未加载的收发器。存档中的这类记录是旧版本留下的（RC1 存档中 39 条有 17 条，其中 13 条在 2026-08 的备份里就已存在）。
 
 ## 4. 架构
 
@@ -161,11 +169,12 @@ cn.gtnh.ae2wtx
   - 位于方块边界上的面取相邻方块亮度，并按 `shouldSideBeRendered` 剔除；内部面取本方块亮度
   - 玻璃是单面四边形：从外面看只显示朝向镜头的那几块，后面的被剔除，与 mock 一致
   - 电弧动画为现代 AE2 `quantum_ring_light` 风格（32 帧、frametime 2），六个面各转 90° 或镜像，避免同步闪烁
+  - 接线面板不透明度：`client.panelOpacity` 为 100 时在 pass 0 不透明绘制；1~99 时改到 pass 1 以顶点 alpha 半透明绘制；0 时不画。`client.glassArcs=false` 时不画电弧
   - 中心 ±1.2 的黑色小方块恰好藏在黑洞阴影球里；特效关闭或超出特效距离时，它代替黑洞，避免能直接看穿方块
 - **黑洞与光点：`client/render/TransceiverEffectsRenderer`（TESR）**，几何按 0.95 缩放以免碰到玻璃
   - 朝向镜头构建：黑色阴影球；吸积盘绕镜头右轴倾斜 12°；盘的远侧经引力透镜弯到阴影上方和下方；外加光子环和更暗的次级环
   - 物理效果：多普勒增亮与色移（β=0.35，迎面一侧更白更亮，背离一侧偏红偏暗）、内缘引力红移、开普勒差速旋转（内圈转得快，每 80 tick 一个循环）
-  - 8 个光点分布在 3 条倾斜轨道上：点亮数 = 本机频道数 / 4（向上取整，最多 8）；颜色表示频率负载（紫色 < 75%，橙色 75%~99%，红色 ≥ 100%，见 `TransceiverVisuals`）
+  - 8 个光点分布在 3 条倾斜轨道上，代表频率容量：点亮数 = ⌈8 × 频率合计频道 / 容量⌉（容量无限时每 4 个频道一个），其中前 ⌈8 × 本机频道 / 容量⌉ 个为本机份额，尺寸和亮度全开，其余缩小、变暗；颜色表示频率负载（紫色 < 75%，橙色 75%~99%，红色 ≥ 100%，见 `TransceiverVisuals`）
   - GL：关闭纹理与光照、光照图满亮；先写深度画阴影球和未点亮的光点，再以加色混合、不写深度画盘、弧、环、光点和泛光。它在地形 pass 1 之前运行，所以玻璃会叠在黑洞上
   - 超过 `client.effectRenderDistance` 或关闭 `client.renderEffects` 时不画
 - **主题**：深色与浅色（L1 珍珠白 + AE 青）两套贴图。每台收发器在 TE 中保存 `theme`（默认 / 深色 / 浅色，NBT `theme`，随描述包同步）；“默认”取客户端配置 `client.defaultTheme`（缺省为 dark）。界面标题栏右侧图标按钮循环切换，经 `TransceiverThemePacket` 由服务端校验（窗口、距离，锁定时需管理权限）后写入。扳手拆卸时非默认主题写进物品 NBT `ae2wtxTheme`，放下时恢复
@@ -174,7 +183,7 @@ cn.gtnh.ae2wtx
 - **贴图**：`python tools/art/generate_assets.py` 生成 `textures/blocks/transceiver/{dark,light}/` 下的边框（32px）、斜面与接线面板 on/off（32px）、玻璃（64px）、电弧帧条（64×2048）和普通方块回退图（32px），以及 GUI 贴图；不要手改生成结果
 - 自发光：`getLightValue(IBlockAccess,...)` 在线 15/15，离线 0；状态翻转时 `updateLightByType` 重算
 - **音效**：扳手拆卸播放 `ae2wtx:wrench.disassemble`（音量 0.7、音调 1.0，与现代 AE2 的 `WrenchHook` 一致）。默认文件由 `tools/art/generate_sounds.py` 合成，模仿现代 AE2 所用的 `entity.item_frame.remove_item`；Mojang 的原声不能随仓库分发，`python tools/packs/build_packs.py sounds <Minecraft assets 目录>` 从玩家本机已有的新版 Minecraft 资源中取出这 4 个文件，生成覆盖用的 `AE2WTX-Modern-Sounds.zip`
-- GUI：`textures/gui/transceiver.png`，256×198 面板（三排六个按钮），按钮精灵在 (0,200)/(0,216)/(0,232)/(56,200)（常态/悬停/禁用/待确认删除）；标题栏 12×12 主题按钮底图在 (112,200)/(124,200)，8×8 图标在 v=212（u=112 深色、120 浅色、128 默认）。`LabeledTransceiverGui` 的布局常量与生成脚本中的 `SEARCH`/`LIST`/`SCROLL`/`INFO`/`SCREEN_BOX`/`BUTTONS`/`ICON_BTN_SPRITES`/`GLYPHS` 一一对应，改一边必须同步另一边
+- GUI：`textures/gui/transceiver.png`，256×198 面板（三排六个按钮），按钮精灵在 (0,200)/(0,216)/(0,232)/(56,200)（常态/悬停/禁用/待确认删除）；标题栏 12×12 按钮（主题、改名）底图在 (112,200)/(124,200)，8×8 图标在 v=212（u=112 深色、120 浅色、128 默认、136 改名铅笔）。`LabeledTransceiverGui` 的布局常量与生成脚本中的 `SEARCH`/`LIST`/`SCROLL`/`INFO`/`SCREEN_BOX`/`BUTTONS`/`ICON_BTN_SPRITES`/`GLYPHS` 一一对应，改一边必须同步另一边
 
 ## 6. 已知限制
 

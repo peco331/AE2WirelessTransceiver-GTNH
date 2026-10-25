@@ -23,8 +23,8 @@ public class LabelEndpointsResponsePacketTest {
         names.put(-1, "下界");
         LabelEndpointsResponsePacket sent = new LabelEndpointsResponsePacket(0, 5, 64, 4, 12, 3, "mining",
             Arrays.asList(
-                new LabelNetworkRegistry.EndpointInfo(-1, -30, 70, 12, false),
-                new LabelNetworkRegistry.EndpointInfo(0, 5, 64, 4, true)),
+                new LabelNetworkRegistry.EndpointInfo(-1, -30, 70, 12, false, null),
+                new LabelNetworkRegistry.EndpointInfo(0, 5, 64, 4, true, "主网 \u00a7c控制器")),
             600, names);
         ByteBuf buffer = Unpooled.buffer();
         try {
@@ -41,7 +41,9 @@ public class LabelEndpointsResponsePacketTest {
             assertEquals(70, nether.y);
             assertEquals(12, nether.z);
             assertFalse(nether.online);
+            assertEquals("", nether.name);
             assertTrue(received.getEntries().get(1).online);
+            assertEquals("主网 控制器", received.getEntries().get(1).name);
             assertEquals("下界", received.getDimensionNames().get(-1));
             assertEquals("Overworld", received.getDimensionNames().get(0));
         } finally {

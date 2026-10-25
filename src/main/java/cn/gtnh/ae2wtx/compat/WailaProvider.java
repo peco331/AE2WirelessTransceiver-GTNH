@@ -39,6 +39,9 @@ public class WailaProvider implements IWailaDataProvider {
         TileEntity te = accessor.getTileEntity();
         if (te instanceof LabeledWirelessTransceiverBlockEntity) {
             LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
+            if (lte.getCustomName() != null) {
+                currenttip.add(StatCollector.translateToLocalFormatted("ae2wtx.waila.name", lte.getCustomName()));
+            }
             String label = lte.getLabelForDisplay();
             currenttip.add(StatCollector.translateToLocalFormatted("ae2wtx.waila.frequency",
                 label == null || label.isEmpty() ? "-" : label));
@@ -63,7 +66,7 @@ public class WailaProvider implements IWailaDataProvider {
                     max));
             }
             // channels used by ALL endpoints of this frequency (label) - wording
-            // matches the GUI "本频率频道 x/y"; over capacity -> red, full -> yellow
+            // matches the GUI "频率合计 x/y"; over capacity -> red, full -> yellow
             int net = lte.getNetworkChannelsForDisplay();
             String netVal = ChannelDisplayFormatter.formatBand(net, max);
             currenttip.add(StatCollector.translateToLocal("ae2wtx.waila.channels_network_label") + netVal);

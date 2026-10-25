@@ -8,6 +8,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraftforge.common.DimensionManager;
 
+import cn.gtnh.ae2wtx.config.ModConfig;
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
 import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
@@ -105,6 +106,10 @@ public class LabelEndpointsRequestPacket implements IMessage {
             String label = LabelNetworkRegistry.normalizeLabel(rawLabel);
             if (reg == null || label == null) {
                 return;
+            }
+            if (ModConfig.wirelessPruneMissingTransceivers) {
+                // the player is looking at the list now: drop what is visibly gone first
+                reg.pruneEndpoints(LabelNetworkRegistry::isMissingInLoadedChunk);
             }
             LabelNetworkRegistry.EndpointList list = reg.listEndpoints(world, label, lte.getPlacerId(), MAX_ENDPOINTS);
             Map<Integer, String> dimensionNames = new HashMap<>();

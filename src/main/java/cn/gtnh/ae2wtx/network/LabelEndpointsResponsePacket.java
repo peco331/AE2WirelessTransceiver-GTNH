@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 
 import cn.gtnh.ae2wtx.client.screen.LabeledTransceiverGui;
 import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
+import cn.gtnh.ae2wtx.wireless.TransceiverNames;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -17,7 +18,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import io.netty.buffer.ByteBuf;
 
-/** S2C: saved transceiver positions of one frequency, with display names of their dimensions. */
+/** S2C: saved transceivers of one frequency (position, state, name), with display names of their dimensions. */
 public class LabelEndpointsResponsePacket implements IMessage {
 
     private int dimension;
@@ -84,15 +85,29 @@ public class LabelEndpointsResponsePacket implements IMessage {
         }
         total = buf.readInt();
         int count = buf.readInt();
+        // per entry: four ints, a boolean and a length-prefixed name
         if (total < 0 || count < 0 || count > total || count > LabelEndpointsRequestPacket.MAX_ENDPOINTS
-            || buf.readableBytes() < count * 17 + 4) {
+            || buf.readableBytes() < count * 21 + 4) {
             valid = false;
             return;
         }
         entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            entries.add(new LabelNetworkRegistry.EndpointInfo(buf.readInt(), buf.readInt(), buf.readInt(),
-                buf.readInt(), buf.readBoolean()));
+            if (buf.readableBytes() < 21) {
+                valid = false;
+                return;
+            }
+            int dim = buf.readInt();
+            int ex = buf.readInt();
+            int ey = buf.readInt();
+            int ez = buf.readInt();
+            boolean online = buf.readBoolean();
+            String name = NetworkBufferUtils.tryReadUtf8(buf, TransceiverNames.MAX_BYTES);
+            if (name == null) {
+                valid = false;
+                return;
+            }
+            entries.add(new LabelNetworkRegistry.EndpointInfo(dim, ex, ey, ez, online, TransceiverNames.clean(name)));
         }
         int names = buf.readInt();
         if (names < 0 || names > count) {
@@ -132,6 +147,8 @@ public class LabelEndpointsResponsePacket implements IMessage {
             buf.writeInt(e.y);
             buf.writeInt(e.z);
             buf.writeBoolean(e.online);
+            String name = TransceiverNames.clean(e.name);
+            NetworkBufferUtils.writeUtf8(buf, name == null ? "" : name, TransceiverNames.MAX_BYTES);
         }
         buf.writeInt(dimensionNames.size());
         for (Map.Entry<Integer, String> e : dimensionNames.entrySet()) {

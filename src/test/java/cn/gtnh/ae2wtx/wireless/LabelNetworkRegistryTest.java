@@ -1,6 +1,7 @@
 package cn.gtnh.ae2wtx.wireless;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -293,6 +294,80 @@ public class LabelNetworkRegistryTest {
 
             assertEquals(0, registry.listEndpoints(null, "locate", UUID.randomUUID(), 10).total);
             assertEquals(0, registry.listEndpoints(null, "missing", OWNER, 10).total);
+        } finally {
+            ModConfig.wirelessCrossDimEnable = oldCrossDimensional;
+        }
+    }
+
+    @Test
+    public void keepsTransceiverNamesThroughSaveAndLoad() {
+        boolean oldCrossDimensional = ModConfig.wirelessCrossDimEnable;
+        ModConfig.wirelessCrossDimEnable = true;
+        try {
+            NBTTagCompound named = endpoint(0, 9, 64, 1);
+            named.setString("name", "  矿场入口 ");
+            NBTTagCompound root = rootTag();
+            NBTTagList bands = new NBTTagList();
+            bands.appendTag(band("named", 1_000_040L, endpoints(named, endpoint(0, 2, 65, 8))));
+            root.setTag("networks", bands);
+            LabelNetworkRegistry registry = new LabelNetworkRegistry();
+            registry.readFromNBT(root);
+
+            NBTTagCompound saved = new NBTTagCompound();
+            registry.writeToNBT(saved);
+            LabelNetworkRegistry reloaded = new LabelNetworkRegistry();
+            reloaded.readFromNBT(saved);
+
+            LabelNetworkRegistry.EndpointList list = reloaded.listEndpoints(null, "named", OWNER, 10);
+            assertEquals(2, list.total);
+            assertEquals("", list.entries.get(0).name);
+            assertEquals("矿场入口", list.entries.get(1).name);
+        } finally {
+            ModConfig.wirelessCrossDimEnable = oldCrossDimensional;
+        }
+    }
+
+    @Test
+    public void prunesOnlyThePositionsReportedMissing() {
+        boolean oldCrossDimensional = ModConfig.wirelessCrossDimEnable;
+        ModConfig.wirelessCrossDimEnable = true;
+        try {
+            NBTTagCompound ghost = endpoint(180, 5, 64, 4);
+            ghost.setString("name", "ghost");
+            NBTTagCompound root = rootTag();
+            NBTTagList bands = new NBTTagList();
+            bands.appendTag(band("one", 1_000_050L, endpoints(ghost, endpoint(180, 26, 81, 58))));
+            bands.appendTag(band("two", 1_000_051L, endpoints(endpoint(0, -3, 65, 21))));
+            root.setTag("networks", bands);
+            LabelNetworkRegistry registry = new LabelNetworkRegistry();
+            registry.readFromNBT(root);
+
+            int pruned = registry.pruneEndpoints(ref -> ref.x == 5 || ref.x == -3);
+
+            assertEquals(2, pruned);
+            assertTrue(registry.isDirty());
+            LabelNetworkRegistry.EndpointList one = registry.listEndpoints(null, "one", OWNER, 10);
+            assertEquals(1, one.total);
+            assertEquals(26, one.entries.get(0).x);
+            assertEquals(0, registry.listEndpoints(null, "two", OWNER, 10).total);
+            // the frequency itself stays, only the stale position goes
+            assertNotNull(registry.getNetwork(null, "two", OWNER));
+            assertNull(registry.getNetworkForEndpoint(180, 5, 64, 4, OWNER));
+            assertNotNull(registry.getNetworkForEndpoint(180, 26, 81, 58, OWNER));
+            assertEquals(0, registry.pruneEndpoints(ref -> false));
+
+            NBTTagCompound saved = new NBTTagCompound();
+            registry.writeToNBT(saved);
+            NBTTagList savedBands = saved.getTagList("networks", 10);
+            int endpointsLeft = 0;
+            for (int i = 0; i < savedBands.tagCount(); i++) {
+                NBTTagList eps = savedBands.getCompoundTagAt(i).getTagList("endpoints", 10);
+                endpointsLeft += eps.tagCount();
+                for (int j = 0; j < eps.tagCount(); j++) {
+                    assertFalse(eps.getCompoundTagAt(j).hasKey("name"));
+                }
+            }
+            assertEquals(1, endpointsLeft);
         } finally {
             ModConfig.wirelessCrossDimEnable = oldCrossDimensional;
         }

@@ -34,7 +34,7 @@ public final class AE2WtxCommand extends CommandBase {
             return;
         }
         try {
-            ModConfig.syncValues(false);
+            ModConfig.syncValues(false, true);
             sender.addChatMessage(new ChatComponentTranslation(
                 "ae2wtx.command.reload.success",
                 ModConfig.wirelessMaxBandsPerOwner,

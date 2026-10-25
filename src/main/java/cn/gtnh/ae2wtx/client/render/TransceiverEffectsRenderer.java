@@ -20,7 +20,9 @@ import cn.gtnh.ae2wtx.content.wireless.TransceiverVisuals;
  * side of the disk arching over and under the shadow, and the photon ring.
  * Physics touches: Doppler beaming with a colour shift, gravitational
  * redshift at the inner edge and Keplerian differential rotation. Eight
- * sparks on three tilted orbits: lit = channels / 4, colour = frequency load.
+ * sparks on three tilted orbits: the lit ones show the channels the whole
+ * frequency uses, the share this transceiver carries burns brighter, and the
+ * colour is the frequency load (see TransceiverVisuals).
  * Runs before the terrain's translucent pass, so the glass blends over it.
  */
 public final class TransceiverEffectsRenderer extends TileEntitySpecialRenderer {
@@ -89,7 +91,11 @@ public final class TransceiverEffectsRenderer extends TileEntitySpecialRenderer 
         GL11.glDepthMask(true);
         tes.startDrawingQuads();
         shadow(tes);
-        int lit = online ? TransceiverVisuals.litSparks(lte.getUsedChannelsForDisplay()) : 0;
+        int maxChannels = lte.getMaxChannelsForDisplay();
+        int own = online ? TransceiverVisuals.litSparks(lte.getUsedChannelsForDisplay(), maxChannels) : 0;
+        int lit = online
+            ? Math.max(own, TransceiverVisuals.litSparks(lte.getNetworkChannelsForDisplay(), maxChannels))
+            : 0;
         sparksOff(tes, t, online, lit);
         tes.draw();
 
@@ -102,20 +108,20 @@ public final class TransceiverEffectsRenderer extends TileEntitySpecialRenderer 
             tes.draw();
         } else {
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
-            float[] load = LOAD_RGB[TransceiverVisuals
-                .load(lte.getNetworkChannelsForDisplay(), lte.getMaxChannelsForDisplay()).ordinal()];
+            float[] load = LOAD_RGB[TransceiverVisuals.load(lte.getNetworkChannelsForDisplay(), maxChannels)
+                .ordinal()];
             tes.startDrawingQuads();
             double side = disk(tes, t);
             lensedArc(tes, t, side, 2.42, 3.6, true, 1.15);
             lensedArc(tes, t, side, 2.38, 2.9, false, 0.6);
             photonRing(tes, side, 2.22, 2.34, 1.0);
             photonRing(tes, side, 2.36, 2.41, 0.45);
-            sparksOn(tes, t, lit, load);
+            sparksOn(tes, t, lit, own, load);
             tes.draw();
             bloom(tes, 0, 0, 0, 6.0, rgb(0x9664ff), 0.08F);
             for (int k = 0; k < lit; k++) {
                 double[] p = sparkPos(k, t, true, 0);
-                bloom(tes, p[0], p[1], p[2], 1.4, load, 0.22F);
+                bloom(tes, p[0], p[1], p[2], k < own ? 1.4 : 1.0, load, k < own ? 0.22F : 0.1F);
             }
         }
         GL11.glDepthMask(true);
@@ -310,14 +316,19 @@ public final class TransceiverEffectsRenderer extends TileEntitySpecialRenderer 
         }
     }
 
-    private void sparksOn(Tessellator tes, double t, int lit, float[] col) {
+    /** The first {@code own} of the {@code lit} sparks are this transceiver's share: full size and brightness. */
+    private void sparksOn(Tessellator tes, double t, int lit, int own, float[] col) {
         for (int k = 0; k < lit; k++) {
-            tes.setColorRGBA_F(col[0] * 0.9F + 40 / 255F, col[1] * 0.9F + 40 / 255F, col[2] * 0.9F + 40 / 255F, 1);
-            square(tes, sparkPos(k, t, true, 0), 0.3);
+            float gain = k < own ? 1F : 0.55F;
+            double size = k < own ? 1 : 0.8;
+            float head = 40 / 255F * gain;
+            tes.setColorRGBA_F(col[0] * 0.9F * gain + head, col[1] * 0.9F * gain + head,
+                col[2] * 0.9F * gain + head, 1);
+            square(tes, sparkPos(k, t, true, 0), 0.3 * size);
             for (int q = 1; q <= 4; q++) {
-                float f = 0.5F - q * 0.1F;
+                float f = (0.5F - q * 0.1F) * gain;
                 tes.setColorRGBA_F(col[0] * f, col[1] * f, col[2] * f, 1);
-                square(tes, sparkPos(k, t, true, q), 0.24 - q * 0.04);
+                square(tes, sparkPos(k, t, true, q), (0.24 - q * 0.04) * size);
             }
         }
     }
