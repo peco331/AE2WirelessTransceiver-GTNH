@@ -9,7 +9,7 @@ Both packs are made from material that this repository must not redistribute, so
 into build/resourcepacks/ and never committed or attached to a release:
 
 - AE2WTX-Classic-Look.zip: the ExtendedAE_Plus Light Mode model and textures (C-H716, _leng, fish_旦) that
-  releases up to 1.1.1 used, read from Git history at CLASSIC_COMMIT.  The mod's block renderer draws
+  releases up to 1.1.0 used, read from Git history at CLASSIC_COMMIT.  The mod's block renderer draws
   assets/ae2wtx/models/classic/transceiver_{off,on}.json in place of the built-in look when a pack has them.
 - AE2WTX-Modern-Sounds.zip: the sound modern AE2 plays when a wrench disassembles a block
   (minecraft:entity.item_frame.remove_item, 4 variants), copied from a newer Minecraft's asset store that

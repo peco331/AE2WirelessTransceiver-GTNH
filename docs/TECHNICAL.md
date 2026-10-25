@@ -19,13 +19,13 @@
 
 ```bash
 # Linux/macOS：JDK 25 + Jabel，输出仍为 Java 8 字节码
-VERSION=1.1.0 ./gradlew clean build
-# 产物：build/libs/ae2wtx-1.1.0.jar
+VERSION=1.2.0 ./gradlew clean build
+# 产物：build/libs/ae2wtx-1.2.0.jar
 ```
 
 ```powershell
 # Windows PowerShell
-$env:VERSION = "1.1.0"
+$env:VERSION = "1.2.0"
 .\gradlew.bat clean build
 ```
 
@@ -118,7 +118,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - 两个上限都采用“创建时”语义：`0` 禁止新建；连接已有频率、加载/修复已有端点不消耗新配额；降低上限不会删除已有数据。负值与超界整数钳制到边界并记录警告，非整数恢复默认值。
 - `wireless.pruneMissingTransceivers`：默认 `true`，见 3.13。
 - `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`panelOpacity`（默认 `100`，`0..100`，按 10% 一档取整）、`glassArcs`（默认 `true`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）、`locateSeconds`（默认 `60`，`5..600`）、`locateThroughWalls`（默认 `true`）。在游戏内 Config 改动 `defaultTheme`、`simpleBlockModel`、`panelOpacity` 或 `glassArcs` 会重建已渲染区块。
-- 游戏内 Config 先把修改写进内存中的 `Property`，再发 `OnConfigChangedEvent`；处理器调用 `syncValues(false, false)`，**不能**再 `config.load()`，否则会从文件读回旧值、丢掉刚改的内容（1.1.1 及以前的问题）。`/ae2wtx reload` 用 `syncValues(false, true)` 从文件读取。`client` 分类直接放在配置界面第一页，`wireless` 分类在子页。
+- 游戏内 Config 先把修改写进内存中的 `Property`，再发 `OnConfigChangedEvent`；处理器调用 `syncValues(false, false)`，**不能**再 `config.load()`，否则会从文件读回旧值、丢掉刚改的内容（v1.1.0 及以前的问题）。`/ae2wtx reload` 用 `syncValues(false, true)` 从文件读取。`client` 分类直接放在配置界面第一页，`wireless` 分类在子页。
 - 客户端 Config 事件只在客户端代理中注册到 FML bus，避免 common/server 类路径引用客户端事件。它可即时刷新本地/集成服的功耗与上限；专用服务器修改 `config/ae2wtx.cfg` 后可用权限等级 2 的 `/ae2wtx reload` 即时刷新这些安全运行时值。跨维设置仍需完整重启。
 
 ### 3.11 数据包解码防御与空字符串语义区分 (Packet Decoder Hardening)
@@ -180,7 +180,7 @@ cn.gtnh.ae2wtx
   - 超过 `client.effectRenderDistance` 或关闭 `client.renderEffects` 时不画
 - **主题**：深色与浅色（L1 珍珠白 + AE 青）两套贴图。每台收发器在 TE 中保存 `theme`（默认 / 深色 / 浅色，NBT `theme`，随描述包同步）；“默认”取客户端配置 `client.defaultTheme`（缺省为 dark）。界面标题栏右侧图标按钮循环切换，经 `TransceiverThemePacket` 由服务端校验（窗口、距离，锁定时需管理权限）后写入。扳手拆卸时非默认主题写进物品 NBT `ae2wtxTheme`，放下时恢复
 - **回退**：`client.simpleBlockModel=true` 时用原版 `renderStandardBlock` 画普通方块，不画机壳和特效；`getIcon` 的 `fallback_off/on` 也用于破坏粒子
-- **可选的旧外观材质包**：资源包提供 `assets/ae2wtx/models/classic/transceiver_off.json` 和 `_on.json` 时，`ClassicModel` 在贴图集重建时加载，机壳改画该 JSON 模型（支持轴对齐元素、逐面 uv/texture/rotation、`light_emission`；不支持元素旋转；`render_type: translucent` 在 pass 1 画），此时不画特效。`python tools/packs/build_packs.py classic` 从 Git 历史（`31a0e73`）取出 1.1.1 及以前用的 ExtendedAE_Plus Light Mode 模型和贴图，在 `build/resourcepacks/` 生成 `AE2WTX-Classic-Look.zip`；这些第三方素材不回到仓库或发布包。`python tools/art/preview.py <包>` 可离线预览
+- **可选的旧外观材质包**：资源包提供 `assets/ae2wtx/models/classic/transceiver_off.json` 和 `_on.json` 时，`ClassicModel` 在贴图集重建时加载，机壳改画该 JSON 模型（支持轴对齐元素、逐面 uv/texture/rotation、`light_emission`；不支持元素旋转；`render_type: translucent` 在 pass 1 画），此时不画特效。`python tools/packs/build_packs.py classic` 从 Git 历史（`31a0e73`）取出 v1.1.0 及以前用的 ExtendedAE_Plus Light Mode 模型和贴图，在 `build/resourcepacks/` 生成 `AE2WTX-Classic-Look.zip`；这些第三方素材不回到仓库或发布包。`python tools/art/preview.py <包>` 可离线预览
 - **贴图**：`python tools/art/generate_assets.py` 生成 `textures/blocks/transceiver/{dark,light}/` 下的边框（32px）、斜面与接线面板 on/off（32px）、玻璃（64px）、电弧帧条（64×2048）和普通方块回退图（32px），以及 GUI 贴图；不要手改生成结果
 - 自发光：`getLightValue(IBlockAccess,...)` 在线 15/15，离线 0；状态翻转时 `updateLightByType` 重算
 - **音效**：扳手拆卸播放 `ae2wtx:wrench.disassemble`（音量 0.7、音调 1.0，与现代 AE2 的 `WrenchHook` 一致）。默认文件由 `tools/art/generate_sounds.py` 合成，模仿现代 AE2 所用的 `entity.item_frame.remove_item`；Mojang 的原声不能随仓库分发，`python tools/packs/build_packs.py sounds <Minecraft assets 目录>` 从玩家本机已有的新版 Minecraft 资源中取出这 4 个文件，生成覆盖用的 `AE2WTX-Modern-Sounds.zip`

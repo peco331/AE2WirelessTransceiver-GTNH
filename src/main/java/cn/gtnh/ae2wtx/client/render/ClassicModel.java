@@ -29,7 +29,7 @@ import cn.gtnh.ae2wtx.AE2Wtx;
  * off. The files use the modern JSON block-model format (Blockbench "Java
  * block"): axis-aligned elements with per-face uv, texture and rotation, and
  * light_emission. Element rotation is not supported. tools/packs/build_packs.py
- * builds such a pack from the look releases up to 1.1.1 used.
+ * builds such a pack from the look releases up to 1.1.0 used.
  */
 public final class ClassicModel {
 
