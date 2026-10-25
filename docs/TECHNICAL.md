@@ -10,9 +10,10 @@
 - 移植的代码与设计：
   - 标签网络注册表 `LabelNetworkRegistry`（WorldSavedData：Key(维度/标签/所有者)、频道从 1,000,000 递增、虚拟节点）
   - 连接器 `LabelLink`（收发器节点 ↔ 频段虚拟节点）
-  - 管理 GUI 与布局（EAEP 原版纹理与交互：新建/删除/设定/断开、搜索、信息面板）
-  - Waila/Jade 显示结构、锁定/拆卸交互、纹理与 GUI 资源
-- 第三方组件：AE2（MIT）、GT5-Unofficial、SpongePowered Mixin（MIT）；Light Mode 纹理版权归 C-H716, _leng, fish_旦（见下）
+  - 管理 GUI 的交互（新建/删除/设定/断开、搜索、信息面板）；布局与贴图已重做
+  - Waila/Jade 显示结构、锁定/拆卸交互
+- 第三方组件：AE2（MIT）、GT5-Unofficial、SpongePowered Mixin（MIT）
+- 美术资源：方块模型、贴图与 GUI 贴图为原创，由 `tools/art/generate_assets.py` 生成（早期版本使用的 Light Mode 材质已全部移除）
 
 ## 2. 构建
 
@@ -143,19 +144,22 @@ cn.gtnh.ae2wtx
 
 ## 5. 渲染与外观
 
-- **3D 模型（可选 GTNHLib 现代模型系统）**：检测到兼容 API 时，方块渲染采用 blockbench 模型（Light Mode plain 版，31 元素）
-  - 资源：`assets/ae2wtx/blockstates/labeled_wireless_transceiver.json`（variants: meta=0/1）+ `models/blocks/lable_off.json`（channel0 状态）/ `lable_on.json`（channel5 状态 + 发光核心元素）
+- **3D 模型（可选 GTNHLib 现代模型系统）**：检测到兼容 API 时使用 JSON 模型：底座、内收机身（四面信号窗）、顶板、福鲁伊克斯水晶簇（主晶绕 Y 轴 45°，两枚小晶分别绕 X/Z 倾斜 22.5°）和四根角天线；off 18 个元素，on 另加 4 条信号窗灯带
+  - 资源：`assets/ae2wtx/blockstates/labeled_wireless_transceiver.json`（variants: meta=0/1）+ `models/blocks/transceiver_off.json` / `transceiver_on.json`，贴图在 `textures/blocks/transceiver/`（均为 16×16，模型面按 1 像素 = 1 模型单位取 UV，`side`/`top` 即侧视图和俯视图）
+  - 生成与预览：`python tools/art/generate_assets.py` 重新生成全部贴图、模型和 GUI 贴图；`python tools/art/preview.py` 离线渲染预览（Pillow + numpy）。不要手改生成结果
+  - 发光：on 模型的水晶、天线灯和信号窗灯带带 `light_emission: 15`，由 GTNHLib 以满亮度渲染
   - 客户端 init 仅在检测到 `gtnhlib` 后以反射探测 `ModelRegistry.registerModid(String)` 与 `ModelISBRH.JSON_ISBRH_ID`；成功后启用 JSON render type，避免专服或无库客户端产生类链接错误
   - 缺少 GTNHLib 或 API 不匹配时，`getRenderType()` 保持为原版 standard block render type `0`，使用 `registerBlockIcons/getIcon` 已注册的 off/on 贴图渲染完整立方体；核心逻辑、频道状态和发光等级不受影响
   - **纹理路径陷阱**：beta3 的 `GTNHLib 0.11.46` 按现代路径直接读取模型纹理，不再自动补 `textures/blocks/`；资源位于 `textures/blocks/` 时，模型引用必须显式写成 `ae2wtx:blocks/...`。旧的 `block/` 或省略 `blocks/` 都会导致紫黑缺失贴图。
-  - **动画**：on 模型发光核心引用 lighting 帧条（16x432 + mcmeta frametime 2），gtnhlib `AnimatedTexture` 自动播放（呼吸发光）；off 模型隐藏核心用透明贴图（避免 z-fighting 闪烁）
-  - 渲染性能：gtnhlib 自带模型缓存（BLOCKSTATE_MODEL_CACHE/JSON_MODEL_CACHE），烘焙一次性、渲染走 DirectTessellator/CEL；纹理仅 128x，影响可忽略
+  - **动画**：on 模型水晶引用 `crystal_on` 帧条（12 帧 + mcmeta frametime 3），gtnhlib `AnimatedTexture` 自动播放（呼吸发光）
+  - 渲染性能：gtnhlib 自带模型缓存（BLOCKSTATE_MODEL_CACHE/JSON_MODEL_CACHE），烘焙一次性、渲染走 DirectTessellator/CEL；贴图均为 16×16
 - 自发光：`getLightValue(IBlockAccess,...)` 在线 15/15，离线 0；状态翻转时 `updateLightByType` 重算
-- 默认方块贴图（`textures/blocks/wireless_transceiver/lable_*`）作为 getIcon/粒子 fallback
+- 默认方块贴图（`textures/blocks/transceiver/fallback_off/on`）作为 getIcon/粒子 fallback
+- GUI：`textures/gui/transceiver.png`，256×178 面板，按钮四态精灵在 v=184/200/216/232（常态/悬停/禁用/待确认删除）；`LabeledTransceiverGui` 的布局常量与生成脚本中的 `SEARCH`/`LIST`/`SCROLL`/`INFO`/`SCREEN_BOX`/`BUTTONS` 一一对应，改一边必须同步另一边
 
 ## 6. 已知限制
 
-- **channel 0-5 全部六态**未复刻（本 mod 方块仅 off/on 两态，off=channel0 外观 / on=channel5 外观；频道实时信息由 Waila/GUI 呈现）
+- 方块外观只有 off/on 两态（meta 0/1），不按频道占用分级；频道实时信息由 Waila/GUI 呈现
 - 网络工具无线连线的 Mixin 是可选的（`required: false`、`require = 0`）：AE2 改动 `onUpdate` 后只会少画无线连线，不影响启动。
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
 - 玩家可见频道数采用实际导线拓扑上的需求口径；它有意显示需求而非已分配数，以便超载时仍显示 `33/32`

@@ -164,8 +164,8 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
         // 1.7.10 prepends "textures/blocks/" automatically (no "block/" segment)
-        iconOff = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_off");
-        iconOn = reg.registerIcon("ae2wtx:wireless_transceiver/lable_wireless_transceiver_on");
+        iconOff = reg.registerIcon("ae2wtx:transceiver/fallback_off");
+        iconOn = reg.registerIcon("ae2wtx:transceiver/fallback_on");
     }
 
     @Override

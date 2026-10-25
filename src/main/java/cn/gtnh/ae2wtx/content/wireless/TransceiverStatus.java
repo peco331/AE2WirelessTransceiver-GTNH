@@ -7,16 +7,17 @@ import appeng.api.networking.pathing.ControllerState;
 /**
  * Why a transceiver is (not) working, shown in Waila and the GUI. Ordered by
  * diagnostic priority: the first problem that applies is the one reported.
+ * Colours are chosen for dark backgrounds (Waila tooltip, GUI status screen).
  */
 public enum TransceiverStatus {
 
-    OK(0x3C9A3C),
-    NO_BAND(0x808080),
-    LINK_DENIED(0xE05555),
-    LINKING(0xC08020),
-    CONTROLLER_CONFLICT(0xE05555),
-    BOOTING(0xC08020),
-    NO_POWER(0xE05555);
+    OK(0x55D055),
+    NO_BAND(0xA0A0A0),
+    LINK_DENIED(0xFF6060),
+    LINKING(0xE0A030),
+    CONTROLLER_CONFLICT(0xFF6060),
+    BOOTING(0xE0A030),
+    NO_POWER(0xFF6060);
 
     private final int color;
 

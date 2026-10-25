@@ -40,7 +40,7 @@
 - 默认每台收发器消耗 **10 AE/t**，不随距离增加；本模组不提供区块加载功能。
 - 不同玩家的同名频段互不相通，当前没有 FTB Teams 队伍共享。关闭跨维连接后，频段按维度分开。
 - 频道显示统计设备需求，包含缺频道的设备，因此可能出现红色 `33/32`；它不代表实际分配了 33 个频道。
-- 界面信息没有定时刷新，外部连接变化后可重新打开。相邻收发器不会直接互连，但仍可能通过共用线缆接入同一网络。
+- 界面打开时每 2 秒自动刷新在线数和频道数。相邻收发器不会直接互连，但仍可能通过共用线缆接入同一网络。
 
 ## 配置
 
@@ -57,6 +57,6 @@
 
 ## 来源与许可
 
-移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（GaLicn），以 **LGPL-3.0** 发布。模型与贴图适配自 **ExtendedAE_Plus Light Mode Texture Pack (1.21)**（C-H716、_leng、fish_旦）。详见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（GaLicn），以 **LGPL-3.0** 发布。方块模型、贴图和 GUI 为本项目原创，由 `tools/art/generate_assets.py` 生成；早期版本曾使用 ExtendedAE_Plus Light Mode 材质包（C-H716、_leng、fish_旦）的资源。详见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 术语参考：[GTNH 中文 Wiki](https://gtnh.huijiwiki.com/wiki/%E5%BA%94%E7%94%A8%E8%83%BD%E6%BA%902/%E8%BF%9E%E6%8E%A5ME%E7%BD%91%E7%BB%9C) · [MC 百科：无线收发器](https://www.mcmod.cn/item/890807.html)。本移植版的操作方式以上文为准。
