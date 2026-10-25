@@ -71,13 +71,13 @@ public class ModConfig {
                 "wirelessMaxBandsPerOwner",
                 DEFAULT_MAX_BANDS_PER_OWNER,
                 MAX_BANDS_PER_OWNER_LIMIT,
-                "Maximum bands owned by one owner in the active scope (global when cross-dimension is enabled, "
-                    + "otherwise per dimension). 0 disables creation of new bands for all owners.");
+                "Maximum frequencies owned by one owner in the active scope (global when cross-dimension is enabled, "
+                    + "otherwise per dimension). 0 disables creation of new frequencies for all owners.");
             int newMaxBandsPerWorld = getClampedInt(
                 "wirelessMaxBandsPerWorld",
                 DEFAULT_MAX_BANDS_PER_WORLD,
                 MAX_BANDS_PER_WORLD_LIMIT,
-                "Maximum total number of bands in this world save. 0 disables creation of all new bands.");
+                "Maximum total number of frequencies in this world save. 0 disables creation of all new frequencies.");
 
             wirelessTransceiverIdlePower = newIdlePower;
             wirelessMaxBandsPerOwner = newMaxBandsPerOwner;

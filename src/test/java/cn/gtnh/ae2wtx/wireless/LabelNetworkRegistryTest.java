@@ -265,6 +265,39 @@ public class LabelNetworkRegistryTest {
         }
     }
 
+    @Test
+    public void listsSavedEndpointsSortedAndLimitedForTheOwnerOnly() {
+        boolean oldCrossDimensional = ModConfig.wirelessCrossDimEnable;
+        ModConfig.wirelessCrossDimEnable = true;
+        try {
+            NBTTagCompound root = rootTag();
+            NBTTagList bands = new NBTTagList();
+            bands.appendTag(band("locate", 1_000_030L,
+                endpoints(endpoint(0, 9, 64, 1), endpoint(-1, 3, 70, 3), endpoint(0, 2, 65, 8))));
+            root.setTag("networks", bands);
+            LabelNetworkRegistry registry = new LabelNetworkRegistry();
+            registry.readFromNBT(root);
+
+            LabelNetworkRegistry.EndpointList all = registry.listEndpoints(null, "locate", OWNER, 10);
+            assertEquals(3, all.total);
+            assertEquals(3, all.entries.size());
+            assertEquals(-1, all.entries.get(0).dim);
+            assertEquals(2, all.entries.get(1).x);
+            assertEquals(9, all.entries.get(2).x);
+            // nothing is loaded in a unit test, so no endpoint holds a runtime link
+            assertTrue(all.entries.stream().noneMatch(e -> e.online));
+
+            LabelNetworkRegistry.EndpointList limited = registry.listEndpoints(null, "locate", OWNER, 2);
+            assertEquals(3, limited.total);
+            assertEquals(2, limited.entries.size());
+
+            assertEquals(0, registry.listEndpoints(null, "locate", UUID.randomUUID(), 10).total);
+            assertEquals(0, registry.listEndpoints(null, "missing", OWNER, 10).total);
+        } finally {
+            ModConfig.wirelessCrossDimEnable = oldCrossDimensional;
+        }
+    }
+
     private static NBTTagCompound rootTag() {
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger("dataVersion", 3);

@@ -345,10 +345,10 @@ def build_model(on):
 
 # --------------------------------------------------------------------- GUI
 #
-# 256x178 panel in vanilla/AE2 style.  The coordinates here must match the
+# 256x198 panel in vanilla/AE2 style.  The coordinates here must match the
 # constants in LabeledTransceiverGui.
 
-GUI_W, GUI_H = 256, 178
+GUI_W, GUI_H = 256, 198
 P_BG = rgb("#c6c6c6")
 P_HI = rgb("#ffffff")
 P_SH = rgb("#555555")
@@ -363,13 +363,13 @@ SCREEN = rgb("#1b1b20")
 FIELD = rgb("#202020")
 
 SEARCH = (8, 21, 129, 12)       # x, y, w, h (inner)
-LIST = (8, 37, 120, 132)        # 12 rows of 11
-SCROLL = (131, 37, 6, 132)
+LIST = (8, 37, 120, 154)        # 14 rows of 11
+SCROLL = (131, 37, 6, 154)
 INFO = (143, 21, 105, 72)
-SCREEN_BOX = (143, 135, 105, 34)
+SCREEN_BOX = (143, 154, 105, 37)
 BTN_SIZE = (52, 16)
-BUTTONS = ((143, 97), (196, 97), (143, 115), (196, 115))
-BTN_SPRITES_Y = 184             # normal, hover, disabled, armed; 16 px apart
+BUTTONS = ((143, 97), (196, 97), (143, 115), (196, 115), (143, 133), (196, 133))
+BTN_SPRITES = ((0, 200), (0, 216), (0, 232), (56, 200))   # normal, hover, disabled, armed
 
 
 def panel(c, x0, y0, w, h):
@@ -445,8 +445,8 @@ def gui_texture():
         (rgb("#6e6e6e"), rgb("#7e7e7e"), rgb("#5e5e5e")),   # disabled
         (rgb("#a84040"), rgb("#d77272"), rgb("#6a2222")),   # armed delete
     )
-    for i, (fill, hi, sh) in enumerate(sprites):
-        button_sprite(c, 0, BTN_SPRITES_Y + i * 16, fill, hi, sh)
+    for (x, y), (fill, hi, sh) in zip(BTN_SPRITES, sprites):
+        button_sprite(c, x, y, fill, hi, sh)
     return c
 
 

@@ -63,7 +63,7 @@ public class WailaProvider implements IWailaDataProvider {
                     max));
             }
             // channels used by ALL endpoints of this frequency (label) - wording
-            // matches the GUI "本频段频道 x/y"; over capacity -> red, full -> yellow
+            // matches the GUI "本频率频道 x/y"; over capacity -> red, full -> yellow
             int net = lte.getNetworkChannelsForDisplay();
             String netVal = ChannelDisplayFormatter.formatBand(net, max);
             currenttip.add(StatCollector.translateToLocal("ae2wtx.waila.channels_network_label") + netVal);

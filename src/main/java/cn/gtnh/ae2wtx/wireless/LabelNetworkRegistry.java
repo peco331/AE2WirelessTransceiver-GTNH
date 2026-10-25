@@ -444,6 +444,28 @@ public class LabelNetworkRegistry extends WorldSavedData {
         return new PagedSnapshots(new ArrayList<>(all.subList(from, to)), page, pageSize, total, pageCount);
     }
 
+    /**
+     * Saved transceivers of one band (loaded or not), sorted by dimension and
+     * position, at most {@code limit} of them. Scoped like {@link #getNetwork}.
+     */
+    public synchronized EndpointList listEndpoints(World world, String rawLabel, UUID placerId, int limit) {
+        LabelNetwork network = getNetwork(world, rawLabel, placerId);
+        if (network == null) {
+            return new EndpointList(Collections.emptyList(), 0);
+        }
+        List<EndpointInfo> all = new ArrayList<>(network.endpoints.size());
+        for (EndpointRef ref : network.endpoints) {
+            all.add(new EndpointInfo(ref.dim == null ? 0 : ref.dim, ref.x, ref.y, ref.z,
+                network.loadedEndpoints.contains(ref)));
+        }
+        all.sort(Comparator.<EndpointInfo>comparingInt(e -> e.dim)
+            .thenComparingInt(e -> e.x)
+            .thenComparingInt(e -> e.z)
+            .thenComparingInt(e -> e.y));
+        int count = Math.min(all.size(), Math.max(0, limit));
+        return new EndpointList(new ArrayList<>(all.subList(0, count)), all.size());
+    }
+
     public synchronized int countBands(World world, UUID placerId) {
         return listNetworks(world, placerId).size();
     }
@@ -836,6 +858,37 @@ public class LabelNetworkRegistry extends WorldSavedData {
         @Override
         public int hashCode() {
             return Objects.hash(dim, label, owner);
+        }
+    }
+
+    /** One saved transceiver position of a band, for the locate list. */
+    public static final class EndpointInfo {
+
+        public final int dim;
+        public final int x;
+        public final int y;
+        public final int z;
+        /** The transceiver's chunk is loaded and it holds a runtime link. */
+        public final boolean online;
+
+        public EndpointInfo(int dim, int x, int y, int z, boolean online) {
+            this.dim = dim;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.online = online;
+        }
+    }
+
+    public static final class EndpointList {
+
+        public final List<EndpointInfo> entries;
+        /** Size before the limit was applied. */
+        public final int total;
+
+        EndpointList(List<EndpointInfo> entries, int total) {
+            this.entries = entries;
+            this.total = total;
         }
     }
 

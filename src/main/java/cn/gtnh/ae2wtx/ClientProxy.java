@@ -3,7 +3,10 @@ package cn.gtnh.ae2wtx;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import net.minecraftforge.common.MinecraftForge;
+
 import cn.gtnh.ae2wtx.client.config.ClientConfigChangedHandler;
+import cn.gtnh.ae2wtx.client.locate.TransceiverLocator;
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlock;
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Loader;
@@ -22,6 +25,7 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
         FMLCommonHandler.instance().bus().register(new ClientConfigChangedHandler());
+        MinecraftForge.EVENT_BUS.register(TransceiverLocator.INSTANCE);
         enableOptionalGtnhLibModel();
     }
 

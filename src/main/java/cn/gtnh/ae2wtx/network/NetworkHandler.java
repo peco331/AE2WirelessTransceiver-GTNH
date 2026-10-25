@@ -34,6 +34,16 @@ public final class NetworkHandler {
             LabelListResponsePacket.class,
             nextId++,
             Side.CLIENT);
+        CHANNEL.registerMessage(
+            LabelEndpointsRequestPacket.Handler.class,
+            LabelEndpointsRequestPacket.class,
+            nextId++,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            LabelEndpointsResponsePacket.Handler.class,
+            LabelEndpointsResponsePacket.class,
+            nextId++,
+            Side.CLIENT);
         AE2Wtx.LOG.info("ae2wtx network channel initialized");
     }
 }
