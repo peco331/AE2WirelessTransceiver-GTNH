@@ -14,13 +14,14 @@
 - **定位收发器**：在界面中列出同一频率的全部收发器，可在世界中透视高亮其中一台、几台或全部，并在聊天栏生成可点击的传送坐标；其他维度的收发器同样会被标记，进入该维度即可看到。
 - **网络状态显示**：通过 Waila、方块界面和 AE2 网络可视化工具查看连接与频道信息。
 - **扳手操作**：右键锁定 / 解锁，潜行右键拆卸；已锁定设备由所有者或管理员管理。
-- **外观与语言**：3D 模型、发光动画，以及简体中文、繁体中文和英文；无兼容 GTNHLib 时使用普通方块外观。
+- **外观**：玻璃机壳，内部是带物理效果的黑洞，周围的光点显示本机频道数和频率负载；玻璃上有 AE2 量子环式电弧。深色、浅色两套配色，每台可在界面里单独切换。也可以改用普通方块外观，或装上旧版外观材质包（见下文）。
+- **语言**：简体中文、繁体中文和英文。
 
 ## 安装
 
 将 `ae2wtx-*.jar` 放入 `mods` 文件夹，更新时移走旧版。联机时客户端与服务端都需要安装。
 
-必需依赖为 **AE2（GTNH 分支）和 GregTech 5 Unofficial**；GTNHLib 提供模型支持，Waila 提供方块信息提示。直接使用整合包自带的依赖即可。
+必需依赖为 **AE2（GTNH 分支）和 GregTech 5 Unofficial**；Waila 提供方块信息提示。直接使用整合包自带的依赖即可。
 
 当前构建依赖沿用 beta3 基线，具体版本见[技术文档](docs/TECHNICAL.md)；这不表示只能在 beta3 使用。
 
@@ -36,6 +37,13 @@
 **收发器** 按钮切换到该频率的收发器列表，选中后点 **定位** 高亮（不选则高亮全部，60 秒后消失）；在频率列表直接点 **定位** 会高亮当前显示频率的全部收发器。聊天栏中的坐标可点击填入传送命令（装有 ServerUtilities 时使用可跨维度的 `/tpl`）。
 
 **断开**只让本机退出；**删除**会删除整个频率并断开关联收发器，仅所有者或管理员可执行。
+
+界面标题栏右上角的小按钮切换这台收发器的外观：跟随默认 → 深色 → 浅色。用扳手拆下时，选过的外观会跟着物品走。
+
+### 收发器外观
+
+- 工作时，黑洞周围亮起的光点数 = 本机频道数 ÷ 4（最多 8 个）。光点颜色表示整个频率的负载：紫色正常，橙色超过 75%，红色已满。
+- 离线时，黑洞变暗，光点和玻璃上的电弧熄灭。
 
 ## 使用要点
 
@@ -58,8 +66,24 @@
 
 数量上限只限制新建频率；`0` 禁止新建，降低上限不会删除已有频率。这些上限与 AE2 频道容量无关。
 
+`client` 分类只影响本机画面，可在游戏内 Config 修改：
+
+| 选项 | 默认值 | 作用 |
+|---|---|---|
+| `defaultTheme` | `dark` | 没单独选外观的收发器用深色（`dark`）还是浅色（`light`） |
+| `renderEffects` | `true` | 是否绘制黑洞和光点 |
+| `effectRenderDistance` | `32` | 在多少格内绘制黑洞和光点 |
+| `simpleBlockModel` | `false` | 改用普通方块外观，不画机壳和特效 |
+
+## 可选材质包
+
+以下两个资源包含有不能随本项目分发的素材，需要用仓库里的脚本在本地生成（Python 3），生成在 `build/resourcepacks/`，放进客户端 `resourcepacks` 文件夹后启用：
+
+- **旧版外观**：`python tools/packs/build_packs.py classic`，生成 `AE2WTX-Classic-Look.zip`，即 1.1.1 及以前版本的 ExtendedAE_Plus Light Mode 外观（C-H716、_leng、fish_旦）。启用后不显示黑洞特效。
+- **高版本 AE2 拆卸音效**：`python tools/packs/build_packs.py sounds <Minecraft 的 assets 目录>`，从本机已有的 1.9 以上新版 Minecraft 资源中取出现代 AE2 扳手拆卸时的原版音效，生成 `AE2WTX-Modern-Sounds.zip`。不装这个包时，使用模组自带的近似合成音效。
+
 ## 来源与许可
 
-移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（GaLicn），以 **LGPL-3.0** 发布。方块模型、贴图和 GUI 为本项目原创，由 `tools/art/generate_assets.py` 生成；早期版本曾使用 ExtendedAE_Plus Light Mode 材质包（C-H716、_leng、fish_旦）的资源。详见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（GaLicn），以 **LGPL-3.0** 发布。方块外观、贴图、GUI 和拆卸音效为本项目原创，由 `tools/art/` 下的脚本生成；早期版本曾使用 ExtendedAE_Plus Light Mode 材质包（C-H716、_leng、fish_旦）的资源。详见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 术语参考：[GTNH 中文 Wiki](https://gtnh.huijiwiki.com/wiki/%E5%BA%94%E7%94%A8%E8%83%BD%E6%BA%902/%E8%BF%9E%E6%8E%A5ME%E7%BD%91%E7%BB%9C) · [MC 百科：无线收发器](https://www.mcmod.cn/item/890807.html)。本移植版的操作方式以上文为准。

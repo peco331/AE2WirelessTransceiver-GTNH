@@ -27,6 +27,17 @@ public class ModConfig {
     public static int wirelessMaxBandsPerOwner = DEFAULT_MAX_BANDS_PER_OWNER;
     public static int wirelessMaxBandsPerWorld = DEFAULT_MAX_BANDS_PER_WORLD;
 
+    /**
+     * Client look (category "client"; read but unused on a dedicated server).
+     * Changing one rebuilds the rendered chunks.
+     */
+    public static final String CATEGORY_CLIENT = "client";
+    public static final int DEFAULT_EFFECT_RENDER_DISTANCE = 32;
+    public static boolean clientDefaultThemeLight = false;
+    public static boolean clientRenderEffects = true;
+    public static int clientEffectRenderDistance = DEFAULT_EFFECT_RENDER_DISTANCE;
+    public static boolean clientSimpleBlockModel = false;
+
     private static boolean initialLoadDone = false;
 
     public static void load(File file) {
@@ -79,6 +90,8 @@ public class ModConfig {
                 MAX_BANDS_PER_WORLD_LIMIT,
                 "Maximum total number of frequencies in this world save. 0 disables creation of all new frequencies.");
 
+            syncClientValues();
+
             wirelessTransceiverIdlePower = newIdlePower;
             wirelessMaxBandsPerOwner = newMaxBandsPerOwner;
             wirelessMaxBandsPerWorld = newMaxBandsPerWorld;
@@ -97,6 +110,35 @@ public class ModConfig {
                 config.save();
             }
         }
+    }
+
+    private static void syncClientValues() {
+        Property theme = config.get(CATEGORY_CLIENT, "defaultTheme", "dark",
+            "Look of transceivers that have no theme chosen in their GUI: dark or light.",
+            new String[] { "dark", "light" });
+        theme.setLanguageKey("ae2wtx.config.defaultTheme");
+        String themeValue = theme.getString().trim();
+        if (!"dark".equals(themeValue) && !"light".equals(themeValue)) {
+            AE2Wtx.LOG.warn("Invalid client.defaultTheme value '{}'; using dark.", themeValue);
+            theme.set("dark");
+            themeValue = "dark";
+        }
+        clientDefaultThemeLight = "light".equals(themeValue);
+
+        Property effects = config.get(CATEGORY_CLIENT, "renderEffects", true,
+            "Draw the black hole and channel sparks inside online transceivers.");
+        effects.setLanguageKey("ae2wtx.config.renderEffects");
+        clientRenderEffects = effects.getBoolean(true);
+
+        Property distance = config.get(CATEGORY_CLIENT, "effectRenderDistance", DEFAULT_EFFECT_RENDER_DISTANCE,
+            "Blocks within which the black hole and sparks are drawn.", 8, 128);
+        distance.setLanguageKey("ae2wtx.config.effectRenderDistance");
+        clientEffectRenderDistance = Math.max(8, Math.min(128, distance.getInt(DEFAULT_EFFECT_RENDER_DISTANCE)));
+
+        Property simple = config.get(CATEGORY_CLIENT, "simpleBlockModel", false,
+            "Render transceivers as a plain textured cube (vanilla renderer, no effects).");
+        simple.setLanguageKey("ae2wtx.config.simpleBlockModel");
+        clientSimpleBlockModel = simple.getBoolean(false);
     }
 
     private static int getClampedInt(String key, int defaultValue, int maxValue, String comment) {

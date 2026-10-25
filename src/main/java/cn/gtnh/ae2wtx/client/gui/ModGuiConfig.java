@@ -24,7 +24,7 @@ public class ModGuiConfig extends GuiConfig {
     private static List<IConfigElement> getConfigElements() {
         List<IConfigElement> list = new ArrayList<>();
         if (ModConfig.config != null) {
-            for (String category : new String[] { "wireless" }) {
+            for (String category : new String[] { "wireless", ModConfig.CATEGORY_CLIENT }) {
                 list.add(new ConfigElement(ModConfig.config.getCategory(category)));
             }
         }

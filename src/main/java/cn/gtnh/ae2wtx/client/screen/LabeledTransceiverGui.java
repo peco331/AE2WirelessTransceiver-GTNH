@@ -19,7 +19,9 @@ import org.lwjgl.opengl.GL11;
 
 import cn.gtnh.ae2wtx.client.locate.TransceiverLocator;
 import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
+import cn.gtnh.ae2wtx.config.ModConfig;
 import cn.gtnh.ae2wtx.content.wireless.TransceiverStatus;
+import cn.gtnh.ae2wtx.content.wireless.TransceiverTheme;
 import cn.gtnh.ae2wtx.gui.LabeledContainer;
 import cn.gtnh.ae2wtx.network.LabelApplyPacket;
 import cn.gtnh.ae2wtx.network.LabelDeletePacket;
@@ -27,6 +29,7 @@ import cn.gtnh.ae2wtx.network.LabelEndpointsRequestPacket;
 import cn.gtnh.ae2wtx.network.LabelListRequestPacket;
 import cn.gtnh.ae2wtx.network.LabelListResponsePacket;
 import cn.gtnh.ae2wtx.network.NetworkHandler;
+import cn.gtnh.ae2wtx.network.TransceiverThemePacket;
 import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
 
 /**
@@ -52,6 +55,15 @@ public class LabeledTransceiverGui extends GuiContainer {
     private static final int BTN_ROW1_Y = 97;
     private static final int BTN_ROW2_Y = 115;
     private static final int BTN_ROW3_Y = 133;
+    /** 12x12 theme toggle in the title bar; sprites at u=112/124, glyphs on v=212. */
+    private static final int THEME_X = 238;
+    private static final int THEME_Y = 4;
+    private static final int ICON_BTN = 12;
+    private static final int ICON_BTN_U = 112;
+    private static final int ICON_BTN_U_HOVER = 124;
+    private static final int ICON_BTN_V = 200;
+    private static final int GLYPH_V = 212;
+    private static final int GLYPH = 8;
 
     private static final int SEARCH_X = 11;
     private static final int SEARCH_Y = 23;
@@ -92,6 +104,7 @@ public class LabeledTransceiverGui extends GuiContainer {
     private IconButton disconnectButton;
     private IconButton modeButton;
     private IconButton locateButton;
+    private ThemeButton themeButton;
     private final List<Entry> entries = new ArrayList<>();
     private final List<Entry> filtered = new ArrayList<>();
     private int scrollOffset = 0;
@@ -200,6 +213,8 @@ public class LabeledTransceiverGui extends GuiContainer {
         buttonList.add(disconnectButton);
         buttonList.add(modeButton);
         buttonList.add(locateButton);
+        themeButton = new ThemeButton(6, guiLeft + THEME_X, guiTop + THEME_Y);
+        buttonList.add(themeButton);
         initialRequestPending = true;
         updateActionButtons();
     }
@@ -418,6 +433,9 @@ public class LabeledTransceiverGui extends GuiContainer {
                 break;
             case 5: // Locate
                 locate();
+                break;
+            case 6: // theme
+                cycleTheme();
                 break;
             default:
                 break;
@@ -761,9 +779,40 @@ public class LabeledTransceiverGui extends GuiContainer {
         renderScrollBar();
     }
 
+    private TransceiverTheme currentTheme() {
+        net.minecraft.tileentity.TileEntity te = player.worldObj.getTileEntity(x, y, z);
+        return te instanceof LabeledWirelessTransceiverBlockEntity
+            ? ((LabeledWirelessTransceiverBlockEntity) te).getTheme()
+            : TransceiverTheme.DEFAULT;
+    }
+
+    /** The server stores it and syncs the tile back; the button follows the synced tile. */
+    private void cycleTheme() {
+        NetworkHandler.CHANNEL.sendToServer(
+            new TransceiverThemePacket(dimension, x, y, z, container.windowId, currentTheme().next()));
+    }
+
+    private List<String> themeTooltip() {
+        TransceiverTheme theme = currentTheme();
+        String dark = StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.theme.dark");
+        String light = StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.theme.light");
+        String name = theme == TransceiverTheme.DARK ? dark
+            : theme == TransceiverTheme.LIGHT ? light
+                : StatCollector.translateToLocalFormatted("gui.ae2wtx.labeled_wireless.theme.default",
+                    ModConfig.clientDefaultThemeLight ? light : dark);
+        List<String> tip = new ArrayList<>();
+        tip.add(StatCollector.translateToLocalFormatted("gui.ae2wtx.labeled_wireless.theme", name));
+        tip.add("§7" + StatCollector.translateToLocal("gui.ae2wtx.labeled_wireless.theme.hint"));
+        return tip;
+    }
+
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         super.drawScreen(mouseX, mouseY, partialTicks);
+        if (themeButton != null && themeButton.isMouseOver(mouseX, mouseY)) {
+            drawHoveringText(themeTooltip(), mouseX, mouseY, fontRendererObj);
+            return;
+        }
         LabelNetworkRegistry.EndpointInfo e = hoveredEndpoint(mouseX, mouseY);
         if (e == null) {
             return;
@@ -1146,6 +1195,33 @@ public class LabeledTransceiverGui extends GuiContainer {
             tm.bindTexture(TEX);
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             drawTexturedModalRect(xPosition, yPosition, u, v, BTN_W, BTN_H);
+        }
+    }
+
+    /** Title-bar toggle showing the block's theme: moon = dark, sun = light, half disc = default. */
+    private class ThemeButton extends GuiButton {
+
+        ThemeButton(int id, int x, int y) {
+            super(id, x, y, ICON_BTN, ICON_BTN, "");
+        }
+
+        boolean isMouseOver(int mouseX, int mouseY) {
+            return visible && mouseX >= xPosition && mouseY >= yPosition && mouseX < xPosition + width
+                && mouseY < yPosition + height;
+        }
+
+        @Override
+        public void drawButton(Minecraft mc, int mouseX, int mouseY) {
+            if (!visible) {
+                return;
+            }
+            TransceiverTheme theme = currentTheme();
+            int glyph = theme == TransceiverTheme.DARK ? 112 : theme == TransceiverTheme.LIGHT ? 120 : 128;
+            mc.getTextureManager().bindTexture(TEX);
+            GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+            drawTexturedModalRect(xPosition, yPosition, isMouseOver(mouseX, mouseY) ? ICON_BTN_U_HOVER : ICON_BTN_U,
+                ICON_BTN_V, ICON_BTN, ICON_BTN);
+            drawTexturedModalRect(xPosition + 2, yPosition + 2, glyph, GLYPH_V, GLYPH, GLYPH);
         }
     }
 }

@@ -50,6 +50,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
     private String labelForDisplay;
     private boolean locked = false;
     private boolean beingRemoved = false;
+    private TransceiverTheme theme = TransceiverTheme.DEFAULT;
 
     private UUID placerId;
     private String placerName;
@@ -449,6 +450,41 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.locked = locked;
         markDirty();
         syncToClients();
+    }
+
+    /* ===================== look ===================== */
+
+    /** Item NBT key that carries the chosen theme through a wrench disassembly. */
+    public static final String ITEM_THEME_KEY = "ae2wtxTheme";
+
+    public TransceiverTheme getTheme() {
+        return theme;
+    }
+
+    public void setTheme(TransceiverTheme theme) {
+        if (theme == null || this.theme == theme) {
+            return;
+        }
+        this.theme = theme;
+        markDirty();
+        syncToClients();
+    }
+
+    /** Store a non-default theme on the dropped item so it survives disassembly. */
+    public void writeLookToItem(ItemStack stack) {
+        if (theme == TransceiverTheme.DEFAULT) {
+            return;
+        }
+        if (!stack.hasTagCompound()) {
+            stack.setTagCompound(new NBTTagCompound());
+        }
+        stack.getTagCompound().setByte(ITEM_THEME_KEY, (byte) theme.ordinal());
+    }
+
+    public void readLookFromItem(ItemStack stack) {
+        if (stack != null && stack.hasTagCompound() && stack.getTagCompound().hasKey(ITEM_THEME_KEY)) {
+            setTheme(TransceiverTheme.fromOrdinal(stack.getTagCompound().getByte(ITEM_THEME_KEY)));
+        }
     }
 
     public long getFrequency() {
@@ -904,6 +940,9 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         tag.setInteger("chSync", channelsSync);
         tag.setInteger("maxCh", maxChannelsSync);
         tag.setBoolean("locked", locked);
+        if (theme != TransceiverTheme.DEFAULT) {
+            tag.setByte("theme", (byte) theme.ordinal());
+        }
         tag.setInteger("netCh", networkChannelsSync);
         tag.setInteger("netOn", onlineCountSync);
         if (labelForDisplay != null) {
@@ -923,6 +962,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.frequency = tag.getLong("frequency");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;
         this.locked = tag.getBoolean("locked");
+        this.theme = TransceiverTheme.fromOrdinal(tag.getByte("theme"));
         if (tag.hasKey("placerId")) {
             this.placerId = parsePlacerId(tag.getString("placerId"));
         }
@@ -970,6 +1010,7 @@ public class LabeledWirelessTransceiverBlockEntity extends TileEntity
         this.channelsSync = tag.getInteger("chSync");
         this.maxChannelsSync = tag.getInteger("maxCh");
         this.locked = tag.getBoolean("locked");
+        this.theme = TransceiverTheme.fromOrdinal(tag.getByte("theme"));
         this.networkChannelsSync = tag.getInteger("netCh");
         this.onlineCountSync = tag.getInteger("netOn");
         this.labelForDisplay = tag.hasKey("label") ? tag.getString("label") : null;

@@ -14,6 +14,9 @@ import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 import cn.gtnh.ae2wtx.AE2Wtx;
+import cn.gtnh.ae2wtx.client.render.ClassicModel;
+import cn.gtnh.ae2wtx.client.render.TransceiverIcons;
+import cn.gtnh.ae2wtx.config.ModConfig;
 import cpw.mods.fml.common.network.internal.FMLNetworkHandler;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -28,14 +31,8 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
 
     public static final int GUI_ID = 1;
 
-    /** Vanilla standard-block renderer until optional GTNHLib integration succeeds. */
-    private static volatile int optionalModelRenderType;
-
-    @SideOnly(Side.CLIENT)
-    private IIcon iconOff;
-
-    @SideOnly(Side.CLIENT)
-    private IIcon iconOn;
+    /** Set by the client proxy to TransceiverBlockRenderer's id; 0 (standard cube) on a server. */
+    private static int renderType;
 
     public LabeledWirelessTransceiverBlock() {
         super(Material.iron);
@@ -81,9 +78,9 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
         if (!world.isRemote && placer instanceof EntityPlayer) {
             TileEntity te = world.getTileEntity(x, y, z);
             if (te instanceof LabeledWirelessTransceiverBlockEntity) {
-                ((LabeledWirelessTransceiverBlockEntity) te).setPlacerId(
-                    ((EntityPlayer) placer).getUniqueID(),
-                    ((EntityPlayer) placer).getCommandSenderName());
+                LabeledWirelessTransceiverBlockEntity lte = (LabeledWirelessTransceiverBlockEntity) te;
+                lte.setPlacerId(((EntityPlayer) placer).getUniqueID(), ((EntityPlayer) placer).getCommandSenderName());
+                lte.readLookFromItem(stack);
             }
         }
     }
@@ -139,15 +136,28 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
 
     /* ===================== rendering ===================== */
 
-    /** Optional GTNHLib JSON model, otherwise vanilla standard-block rendering. */
+    /**
+     * TransceiverBlockRenderer: the frame, bevels and wiring panels in pass 0,
+     * the glass and its arcs in pass 1.
+     */
     @Override
     public int getRenderType() {
-        return optionalModelRenderType;
+        return renderType;
     }
 
     @SideOnly(Side.CLIENT)
-    public static void setOptionalModelRenderType(int renderType) {
-        optionalModelRenderType = renderType;
+    public static void setRenderType(int id) {
+        renderType = id;
+    }
+
+    @Override
+    public int getRenderBlockPass() {
+        return 1;
+    }
+
+    @Override
+    public boolean canRenderInPass(int pass) {
+        return pass == 0 || pass == 1;
     }
 
     @Override
@@ -163,14 +173,20 @@ public class LabeledWirelessTransceiverBlock extends Block implements ITileEntit
     @Override
     @SideOnly(Side.CLIENT)
     public void registerBlockIcons(IIconRegister reg) {
-        // 1.7.10 prepends "textures/blocks/" automatically (no "block/" segment)
-        iconOff = reg.registerIcon("ae2wtx:transceiver/fallback_off");
-        iconOn = reg.registerIcon("ae2wtx:transceiver/fallback_on");
+        TransceiverIcons.register(reg);
+        ClassicModel.reload(reg);
+    }
+
+    /** Particles, breaking and the simple-cube fallback. */
+    @Override
+    @SideOnly(Side.CLIENT)
+    public IIcon getIcon(int side, int meta) {
+        return TransceiverIcons.forTheme(ModConfig.clientDefaultThemeLight).fallback(meta == 1);
     }
 
     @Override
     @SideOnly(Side.CLIENT)
-    public IIcon getIcon(int side, int meta) {
-        return meta == 1 ? iconOn : iconOff;
+    public IIcon getIcon(IBlockAccess world, int x, int y, int z, int side) {
+        return TransceiverIcons.forBlock(world, x, y, z).fallback(world.getBlockMetadata(x, y, z) == 1);
     }
 }

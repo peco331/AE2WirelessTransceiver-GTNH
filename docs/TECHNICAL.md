@@ -33,7 +33,7 @@ $env:VERSION = "1.1.0"
 - GitHub Actions 执行同一 `clean build` 并扫描产物中的 class major；按照当前项目验收策略，自动化测试、构建和静态资源检查是合入与发布依据，不把真实 GTNH 客户端/专服烟雾测试作为阻塞条件
 - Mixin 基础设施启用（`usesMixins=true`），注册 `MixinToolNetworkVisualiser` 拦截网络可视化数据包
 - 必需依赖：`Applied-Energistics-2-Unofficial:rv3-beta-1050-GTNH`（匹配 GTNH 2.9.0-beta3 目标运行时）、`GT5-Unofficial:5.09.54.133`
-- GTNHLib 是可选的增强渲染集成：构建脚本把目标版本 `0.11.46` 放入开发运行环境；发布 MOD 不声明最低版本，也不包含对其类的硬链接。缺失或模型 API 不兼容时使用原版立方体渲染
+- 不依赖 GTNHLib：方块外观由自带的 `ISimpleBlockRenderingHandler` 与 TESR 绘制（见第 5 节）
 - Waila `1.19.34` 仅以 `compileOnly` 编译可选兼容，不会被打包或声明为运行时必需依赖
 - `processResources` 将根目录 `LICENSE` 与 `THIRD_PARTY_NOTICES.md` 收入发布 JAR 的 `META-INF/`
 
@@ -116,6 +116,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - `wireless.wirelessMaxBandsPerOwner`：默认 `128`、范围 `0..10000`，限制一位所有者在当前频率作用域内创建的新频率数量。
 - `wireless.wirelessMaxBandsPerWorld`：默认 `4096`、范围 `0..100000`，限制该世界存档的频率总量。
 - 两个上限都采用“创建时”语义：`0` 禁止新建；连接已有频率、加载/修复已有端点不消耗新配额；降低上限不会删除已有数据。负值与超界整数钳制到边界并记录警告，非整数恢复默认值。
+- `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）。在游戏内 Config 改动 `defaultTheme` 或 `simpleBlockModel` 会重建已渲染区块。
 - 客户端 Config 事件只在客户端代理中注册到 FML bus，避免 common/server 类路径引用客户端事件。它可即时刷新本地/集成服的功耗与上限；专用服务器修改 `config/ae2wtx.cfg` 后可用权限等级 2 的 `/ae2wtx reload` 即时刷新这些安全运行时值。跨维设置仍需完整重启。
 
 ### 3.11 数据包解码防御与空字符串语义区分 (Packet Decoder Hardening)
@@ -152,27 +153,37 @@ cn.gtnh.ae2wtx
 
 ## 5. 渲染与外观
 
-- **3D 模型（可选 GTNHLib 现代模型系统）**：检测到兼容 API 时使用 JSON 模型：底座、内收机身（四面信号窗）、顶板、福鲁伊克斯水晶簇（主晶绕 Y 轴 45°，两枚小晶分别绕 X/Z 倾斜 22.5°）和四根角天线；off 18 个元素，on 另加 4 条信号窗灯带
-  - 资源：`assets/ae2wtx/blockstates/labeled_wireless_transceiver.json`（variants: meta=0/1）+ `models/blocks/transceiver_off.json` / `transceiver_on.json`，贴图在 `textures/blocks/transceiver/`（均为 16×16，模型面按 1 像素 = 1 模型单位取 UV，`side`/`top` 即侧视图和俯视图）
-  - 生成与预览：`python tools/art/generate_assets.py` 重新生成全部贴图、模型和 GUI 贴图；`python tools/art/preview.py` 离线渲染预览（Pillow + numpy）。不要手改生成结果
-  - 发光：on 模型的水晶、天线灯和信号窗灯带带 `light_emission: 15`，由 GTNHLib 以满亮度渲染
-  - 客户端 init 仅在检测到 `gtnhlib` 后以反射探测 `ModelRegistry.registerModid(String)` 与 `ModelISBRH.JSON_ISBRH_ID`；成功后启用 JSON render type，避免专服或无库客户端产生类链接错误
-  - 缺少 GTNHLib 或 API 不匹配时，`getRenderType()` 保持为原版 standard block render type `0`，使用 `registerBlockIcons/getIcon` 已注册的 off/on 贴图渲染完整立方体；核心逻辑、频道状态和发光等级不受影响
-  - **纹理路径陷阱**：beta3 的 `GTNHLib 0.11.46` 按现代路径直接读取模型纹理，不再自动补 `textures/blocks/`；资源位于 `textures/blocks/` 时，模型引用必须显式写成 `ae2wtx:blocks/...`。旧的 `block/` 或省略 `blocks/` 都会导致紫黑缺失贴图。
-  - **动画**：on 模型水晶引用 `crystal_on` 帧条（12 帧 + mcmeta frametime 3），gtnhlib `AnimatedTexture` 自动播放（呼吸发光）
-  - 渲染性能：gtnhlib 自带模型缓存（BLOCKSTATE_MODEL_CACHE/JSON_MODEL_CACHE），烘焙一次性、渲染走 DirectTessellator/CEL；贴图均为 16×16
+外观为“设计 7”：12 条 2 格宽边框；每个面上从边框内沿到玻璃有一圈 45° 浅斜面（宽 1、深 1，外沿亮折边、内沿发光缝），玻璃面板在 1 格深处、跨 3..13；中央 6×6 接线面板（5..11）从表面一直伸到玻璃。机壳内部是黑洞特效与频道光点。
+
+- **机壳：`client/render/TransceiverBlockRenderer`（ISBRH）**。斜面是斜切梯形，JSON 方块模型表达不了，所以不用 GTNHLib，直接用 Tessellator 写四边形
+  - 方块 `getRenderBlockPass()=1`、`canRenderInPass` 对 0/1 都返回 true，按 `ForgeHooksClient.getWorldRenderPass()` 分两遍：pass 0 画边框、斜面、接线面板和中心黑色替身方块；pass 1 画玻璃，在线时再在玻璃外 0.02 格叠一层满亮度电弧
+  - `QuadWriter` 统一写四边形：坐标为模型单位（每格 16），面纹理投影与 JSON 方块模型一致（u 自外向内看从左到右，v 向下），并按法线自动修正绕序，保证剔除背面时正面保留。世界内按原版平面光照把面阴影（上 1.0、下 0.5、南北 0.8、东西 0.6；斜面按法线分量平方加权）乘进顶点色；物品栏改为设置法线交给 GL 光照
+  - 位于方块边界上的面取相邻方块亮度，并按 `shouldSideBeRendered` 剔除；内部面取本方块亮度
+  - 玻璃是单面四边形：从外面看只显示朝向镜头的那几块，后面的被剔除，与 mock 一致
+  - 电弧动画为现代 AE2 `quantum_ring_light` 风格（32 帧、frametime 2），六个面各转 90° 或镜像，避免同步闪烁
+  - 中心 ±1.2 的黑色小方块恰好藏在黑洞阴影球里；特效关闭或超出特效距离时，它代替黑洞，避免能直接看穿方块
+- **黑洞与光点：`client/render/TransceiverEffectsRenderer`（TESR）**，几何按 0.95 缩放以免碰到玻璃
+  - 朝向镜头构建：黑色阴影球；吸积盘绕镜头右轴倾斜 12°；盘的远侧经引力透镜弯到阴影上方和下方；外加光子环和更暗的次级环
+  - 物理效果：多普勒增亮与色移（β=0.35，迎面一侧更白更亮，背离一侧偏红偏暗）、内缘引力红移、开普勒差速旋转（内圈转得快，每 80 tick 一个循环）
+  - 8 个光点分布在 3 条倾斜轨道上：点亮数 = 本机频道数 / 4（向上取整，最多 8）；颜色表示频率负载（紫色 < 75%，橙色 75%~99%，红色 ≥ 100%，见 `TransceiverVisuals`）
+  - GL：关闭纹理与光照、光照图满亮；先写深度画阴影球和未点亮的光点，再以加色混合、不写深度画盘、弧、环、光点和泛光。它在地形 pass 1 之前运行，所以玻璃会叠在黑洞上
+  - 超过 `client.effectRenderDistance` 或关闭 `client.renderEffects` 时不画
+- **主题**：深色与浅色（L1 珍珠白 + AE 青）两套贴图。每台收发器在 TE 中保存 `theme`（默认 / 深色 / 浅色，NBT `theme`，随描述包同步）；“默认”取客户端配置 `client.defaultTheme`（缺省为 dark）。界面标题栏右侧图标按钮循环切换，经 `TransceiverThemePacket` 由服务端校验（窗口、距离，锁定时需管理权限）后写入。扳手拆卸时非默认主题写进物品 NBT `ae2wtxTheme`，放下时恢复
+- **回退**：`client.simpleBlockModel=true` 时用原版 `renderStandardBlock` 画普通方块，不画机壳和特效；`getIcon` 的 `fallback_off/on` 也用于破坏粒子
+- **可选的旧外观材质包**：资源包提供 `assets/ae2wtx/models/classic/transceiver_off.json` 和 `_on.json` 时，`ClassicModel` 在贴图集重建时加载，机壳改画该 JSON 模型（支持轴对齐元素、逐面 uv/texture/rotation、`light_emission`；不支持元素旋转；`render_type: translucent` 在 pass 1 画），此时不画特效。`python tools/packs/build_packs.py classic` 从 Git 历史（`31a0e73`）取出 1.1.1 及以前用的 ExtendedAE_Plus Light Mode 模型和贴图，在 `build/resourcepacks/` 生成 `AE2WTX-Classic-Look.zip`；这些第三方素材不回到仓库或发布包。`python tools/art/preview.py <包>` 可离线预览
+- **贴图**：`python tools/art/generate_assets.py` 生成 `textures/blocks/transceiver/{dark,light}/` 下的边框（32px）、斜面与接线面板 on/off（32px）、玻璃（64px）、电弧帧条（64×2048）和普通方块回退图（32px），以及 GUI 贴图；不要手改生成结果
 - 自发光：`getLightValue(IBlockAccess,...)` 在线 15/15，离线 0；状态翻转时 `updateLightByType` 重算
-- 默认方块贴图（`textures/blocks/transceiver/fallback_off/on`）作为 getIcon/粒子 fallback
-- GUI：`textures/gui/transceiver.png`，256×198 面板（三排六个按钮），按钮精灵在 (0,200)/(0,216)/(0,232)/(56,200)（常态/悬停/禁用/待确认删除）；`LabeledTransceiverGui` 的布局常量与生成脚本中的 `SEARCH`/`LIST`/`SCROLL`/`INFO`/`SCREEN_BOX`/`BUTTONS` 一一对应，改一边必须同步另一边
+- **音效**：扳手拆卸播放 `ae2wtx:wrench.disassemble`（音量 0.7、音调 1.0，与现代 AE2 的 `WrenchHook` 一致）。默认文件由 `tools/art/generate_sounds.py` 合成，模仿现代 AE2 所用的 `entity.item_frame.remove_item`；Mojang 的原声不能随仓库分发，`python tools/packs/build_packs.py sounds <Minecraft assets 目录>` 从玩家本机已有的新版 Minecraft 资源中取出这 4 个文件，生成覆盖用的 `AE2WTX-Modern-Sounds.zip`
+- GUI：`textures/gui/transceiver.png`，256×198 面板（三排六个按钮），按钮精灵在 (0,200)/(0,216)/(0,232)/(56,200)（常态/悬停/禁用/待确认删除）；标题栏 12×12 主题按钮底图在 (112,200)/(124,200)，8×8 图标在 v=212（u=112 深色、120 浅色、128 默认）。`LabeledTransceiverGui` 的布局常量与生成脚本中的 `SEARCH`/`LIST`/`SCROLL`/`INFO`/`SCREEN_BOX`/`BUTTONS`/`ICON_BTN_SPRITES`/`GLYPHS` 一一对应，改一边必须同步另一边
 
 ## 6. 已知限制
 
-- 方块外观只有 off/on 两态（meta 0/1），不按频道占用分级；频道实时信息由 Waila/GUI 呈现
+- 机壳只有 off/on 两态（meta 0/1）；频道占用和频率负载由黑洞周围的光点表示，精确数字仍看 Waila/GUI
 - 网络工具无线连线的 Mixin 是可选的（`required: false`、`require = 0`）：AE2 改动 `onUpdate` 后只会少画无线连线，不影响启动。
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
 - 玩家可见频道数采用实际导线拓扑上的需求口径；它有意显示需求而非已分配数，以便超载时仍显示 `33/32`
 - CI 覆盖编译、自动化测试、静态检查与 Java 8 字节码检查；当前项目不要求目标 GTNH 客户端或专用服务器烟雾测试作为 beta3 合入与发布前置条件
-- 早期手写 `ISimpleBlockRenderingHandler` 方案已废弃（缺面/透明/物品栏异常）；兼容 GTNHLib 时由其官方模型系统承担增强渲染，无库时使用稳定的原版立方体回退
+- 早期一版手写 `ISimpleBlockRenderingHandler` 曾出现缺面、透明和物品栏异常，后来改用 GTNHLib；现在的 ISBRH 统一由 `QuadWriter` 按法线修正绕序、玻璃单独放在 pass 1、物品栏显式开启混合，用来避开这几类问题
 
 ## 7. 交互决策记录
 

@@ -44,6 +44,11 @@ public final class NetworkHandler {
             LabelEndpointsResponsePacket.class,
             nextId++,
             Side.CLIENT);
+        CHANNEL.registerMessage(
+            TransceiverThemePacket.Handler.class,
+            TransceiverThemePacket.class,
+            nextId++,
+            Side.SERVER);
         AE2Wtx.LOG.info("ae2wtx network channel initialized");
     }
 }

@@ -1,0 +1,6 @@
+{
+  "wrench.disassemble": {
+    "category": "block",
+    "sounds": ["wrench_disassemble1", "wrench_disassemble2", "wrench_disassemble3", "wrench_disassemble4"]
+  }
+}

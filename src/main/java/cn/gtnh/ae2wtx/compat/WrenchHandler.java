@@ -136,6 +136,7 @@ public class WrenchHandler {
             return false;
         }
         ItemStack drop = new ItemStack(block);
+        ((LabeledWirelessTransceiverBlockEntity) world.getTileEntity(x, y, z)).writeLookToItem(drop);
         if (!world.setBlockToAir(x, y, z)) {
             return false;
         }
@@ -146,7 +147,7 @@ public class WrenchHandler {
         EntityItem ei = new EntityItem(world, x + dx, y + dy, z + dz, drop);
         ei.delayBeforeCanPickup = 10;
         world.spawnEntityInWorld(ei);
-        world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "random.wood_click", 0.7F, 1.0F);
+        world.playSoundEffect(x + 0.5D, y + 0.5D, z + 0.5D, "ae2wtx:wrench.disassemble", 0.7F, 1.0F);
         return true;
     }
 }

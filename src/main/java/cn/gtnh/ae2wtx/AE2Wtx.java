@@ -23,7 +23,7 @@ import cn.gtnh.ae2wtx.network.ServerTaskQueue;
     name = AE2Wtx.NAME,
     acceptedMinecraftVersions = "[1.7.10]",
     dependencies = "required-after:appliedenergistics2@[rv3-beta-1034-GTNH,);"
-        + "required-after:gregtech@[5.09.52.594,);after:gtnhlib",
+        + "required-after:gregtech@[5.09.52.594,)",
     guiFactory = "cn.gtnh.ae2wtx.client.gui.ModGuiFactory")
 public class AE2Wtx {
 
