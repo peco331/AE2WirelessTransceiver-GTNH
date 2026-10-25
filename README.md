@@ -6,7 +6,7 @@
 
 GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收发器，它们所在的 ME 网络连为一体：不限距离，可跨维度，可多台互连。
 
-适用 Minecraft 1.7.10，支持 GTNH 2.9.0 RC1 与 beta3。
+适用 Minecraft 1.7.10。
 
 [下载](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) · [更新日志](CHANGELOG.md) · [技术文档](docs/TECHNICAL.md) · [反馈问题](https://github.com/peco331/AE2WirelessTransceiver-GTNH/issues)
 
@@ -17,6 +17,17 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 - **定位**：列出一个频率下的全部收发器，在世界里透视高亮，并给出可点击的传送坐标。
 - **命名**：每台收发器可单独命名，列表、定位和 Waila 中显示。
 - **状态显示**：Waila 和界面直接写明收发器不工作的原因，如未设频率、被安全终端拒绝、网络无电。AE2 网络工具可显示无线连线。
+
+## 版本支持
+
+| GTNH | 模组版本 | 下载 | 维护 |
+|---|---|---|:---:|
+| 2.9.0-beta1 | 1.0.1 – 1.0.3 | [![v1.0.3](https://img.shields.io/badge/release-v1.0.3-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.0.3) | ❌ |
+| 2.9.0-beta2 | 1.0.4 – 1.0.6 | [![v1.0.6](https://img.shields.io/badge/release-v1.0.6-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.0.6) | ❌ |
+| 2.9.0-beta3 | 1.1.0 – 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
+| 2.9.0-RC1 | 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
+
+RC1 之后的 GTNH 版本未测试。
 
 ## 安装
 
@@ -92,7 +103,7 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 
 ## English
 
-A wireless ME connector for GT New Horizons (Minecraft 1.7.10, GTNH 2.9.0 RC1 and beta3).
+A wireless ME connector for GT New Horizons (Minecraft 1.7.10). Supports GTNH 2.9.0 beta3 and RC1; later GTNH versions are untested.
 
 ### Features
 
