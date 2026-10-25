@@ -32,16 +32,17 @@ def face_vertices(face, a, b):
     }[face]
 
 
-def load_texture(ref):
+def load_texture(ref, base=None):
     ns, path = ref.split(":")
-    im = Image.open(os.path.join(ROOT, "src", "main", "resources", "assets", ns, "textures", path + ".png"))
+    base = base or os.path.join(ROOT, "src", "main", "resources", "assets")
+    im = Image.open(os.path.join(base, ns, "textures", path + ".png"))
     im = im.convert("RGBA")
     w = im.size[0]
     return np.asarray(im.crop((0, 0, w, w)), dtype=np.float32)
 
 
-def quads(model):
-    tex = {k: load_texture(v) for k, v in model["textures"].items()}
+def quads(model, base=None):
+    tex = {k: load_texture(v, base) for k, v in model["textures"].items()}
     out = []
     for el in model["elements"]:
         rot = el.get("rotation")
@@ -64,7 +65,7 @@ def quads(model):
     return out
 
 
-def render(model, yaw, pitch, scale, size):
+def render(model, yaw, pitch, scale, size, base=None):
     img = np.zeros((size, size, 4), dtype=np.float32)
     zbuf = np.full((size, size), -1e9)
     cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
@@ -78,7 +79,7 @@ def render(model, yaw, pitch, scale, size):
         depth = y * sp + rz * cp
         return np.stack([size / 2 + rx * scale, size / 2 - ry * scale, depth], 1)
 
-    for verts, uv, tex, shade in quads(model):
+    for verts, uv, tex, shade in quads(model, base):
         p = project(verts)
         th, tw = tex.shape[:2]
         for tri in ((0, 1, 2), (0, 2, 3)):
