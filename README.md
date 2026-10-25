@@ -92,16 +92,9 @@
 
 数量上限只限制新建，`0` 为禁止新建；调低上限不会删掉已有频率。
 
-## 可选资源包
-
-这两个包含有不能随本项目分发的素材，需要用仓库里的脚本（Python 3）在本地生成，输出在 `build/resourcepacks/`，放进客户端的 `resourcepacks` 文件夹后启用：
-
-- **旧版外观**：`python tools/packs/build_packs.py classic` 生成 `AE2WTX-Classic-Look.zip`，即 v1.1.0 及以前使用的 ExtendedAE_Plus Light Mode 外观（C-H716、_leng、fish_旦）。启用后不显示黑洞。
-- **新版 AE2 拆卸音效**：`python tools/packs/build_packs.py sounds <新版 Minecraft 的 assets 目录>`，从本机已有的 1.9 以上 Minecraft 资源中取出现代 AE2 扳手拆卸音效，生成 `AE2WTX-Modern-Sounds.zip`。不装时使用模组自带的近似音效。
-
 ## 来源与许可
 
-移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（GaLicn），以 **LGPL-3.0** 发布。方块外观、贴图、GUI 和音效为本项目原创，由 `tools/art/` 下的脚本生成。早期版本使用过 ExtendedAE_Plus Light Mode 材质包的资源，现已全部移除。详见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+移植自 [ExtendedAE_Plus](https://github.com/GaLicn/ExtendedAE_Plus)（GaLicn），以 **LGPL-3.0** 发布。方块外观、贴图、GUI 和音效为本项目原创。早期版本使用过 ExtendedAE_Plus Light Mode 材质包的资源，现已全部移除。详见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 术语参考：[GTNH 中文 Wiki](https://gtnh.huijiwiki.com/wiki/%E5%BA%94%E7%94%A8%E8%83%BD%E6%BA%902/%E8%BF%9E%E6%8E%A5ME%E7%BD%91%E7%BB%9C) · [MC 百科：无线收发器](https://www.mcmod.cn/item/890807.html)。操作方式以本页为准。
 
