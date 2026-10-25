@@ -2,7 +2,7 @@
 
 面向开发者的详细文档：移植来源、GTNH/rv3 适配细节、架构、性能与已知限制。
 
-支持 GTNH 2.9.0 RC1 与 beta3（Minecraft 1.7.10）；RC1 已由玩家实测正常使用，当前构建依赖仍沿用 beta3 基线。GTNH 2.9.0-beta2 只保留为历史兼容背景。
+支持 GTNH 2.9.0 RC1 与 beta3（Minecraft 1.7.10）；构建依赖沿用 beta3 基线。
 
 ## 1. 移植来源与许可
 
@@ -55,7 +55,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - `applyNodeIdentity()` 在标签连接、物理邻接扫描和 `updateState()` 之前设置放置者的 AE2 `playerID`。
 - 不读取、复制或覆写私有 SecurityKey；无线连接统一通过 AE2 正常的 `createGridConnection` 安全检查。
 - 安全拒绝只会保持断链，并按 100 tick 退避重试；不会用对齐安全键的方式绕过安全站。`LabelLink` 被拒时每 1200 tick 记一条 WARN（含坐标、频率与异常）。
-- **玩家 ID 必须用完整 GameProfile 解析**：AE2 `PlayerRegistry.getID` 对名字为空的不完整档案直接返回 `-1`（只按 UUID 存映射，名字不参与）。频率虚拟节点曾用 `new GameProfile(owner, "")`，得到 `-1`；`Platform.securityCheck` 在一侧网格有已启用安全站、另一侧不安全时，检查不安全一侧节点的 playerID 是否有 BUILD，`-1` 必然被拒，导致频率在开服后无法再并入受保护的主网。现统一走 `LabelNetworkRegistry.aeProfile(uuid, name)`（名字为空时用 UUID 字符串占位）。开服瞬间安全缓存未就绪（`startupTicks < 20`），这类合并会侥幸成功，因此症状表现为“重启后好、之后新增连接失败”。
+- **玩家 ID 必须用完整 GameProfile 解析**：AE2 `PlayerRegistry.getID` 对名字为空的不完整档案直接返回 `-1`（只按 UUID 存映射，名字不参与）。因此不能用 `new GameProfile(owner, "")`：`Platform.securityCheck` 在一侧网格有已启用安全站、另一侧不安全时，检查不安全一侧节点的 playerID 是否有 BUILD，`-1` 必然被拒，频率将无法并入受保护的主网。统一走 `LabelNetworkRegistry.aeProfile(uuid, name)`（名字为空时用 UUID 字符串占位）。开服瞬间安全缓存未就绪（`startupTicks < 20`），此时的合并不经检查。
 
 - **公共频率（无所有者）有意不绕过安全站**：其虚拟节点 playerID 为 `-1`，并入有已启用安全站的网络会被 AE2 拒绝，这与 AE2 对无主设备的语义一致。需要接入受保护网络时请使用有所有者的频率。
 - 诊断状态 `TransceiverStatus`：与频道快照同节奏（≤10 tick）在服务端计算，按优先级取第一个问题——无频率 → 链路被拒（`LabelLink.lastAttemptFailed()`）/连接中 → `IPathingGrid.getControllerState() == CONTROLLER_CONFLICT` → `isNetworkBooting()` → `IEnergyGrid.isNetworkPowered()`。以 `status` 字节随描述包同步，Waila 与 GUI 只读客户端值。
@@ -91,7 +91,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - **真实网格与可视化解耦**：
   - 底层 AE2 Grid 拓扑：每个收发器仅与该频率的 `VirtualLabelNodeHost` 保持一条真实的 `IGridConnection`；绝不创建 `Transceiver A <-> Transceiver B` 的真实物理连接，避免网格循环回路与频道紊乱。
   - 客户端 3D 拓扑渲染：通过 `MixinToolNetworkVisualiser` 在 `ToolNetworkVisualiser.onUpdate` 服务端发送封包前拦截数据，由 `NetworkVisualiserCompat` 从当前视角 `World` 中已有的 `VNode` 列表过滤出有效频率节点，按坐标字典序升序生成确定的 $N-1$ 阶星型生成树（Spanning Star Tree），连线标记为 `VLinkFlags.DENSE`，并填入各收发器连接虚拟节点的实际无线占用频道数。
-  - 星型中心：真实中心是频率虚拟节点，它没有世界坐标，因此用一个收发器代替。优先选本地分支能到达 ME Controller 的收发器（频道来源侧，由频道统计 BFS 顺带缓存为 `hasControllerOnLocalBranch()`），有多个时取坐标最小者；都没有时才退回坐标最小者。若纯按坐标选，中心会随机落在远处多方块旁的收发器上，看起来像主网被隔离（2026-10 玩家实测误报）。
+  - 星型中心：真实中心是频率虚拟节点，它没有世界坐标，因此用一个收发器代替。优先选本地分支能到达 ME Controller 的收发器（频道来源侧，由频道统计 BFS 顺带缓存为 `hasControllerOnLocalBranch()`），有多个时取坐标最小者；都没有时才退回坐标最小者。若纯按坐标选，中心会随机落在远处多方块旁的收发器上，看起来像主网被隔离。
 
 ### 3.8 服务端安全与权限模型
 - **防盗与权限校验**：`TransceiverSecurity.canManage(player, te)` 保证未锁定收发器可正常交互；锁定收发器仅拥有者（Owner UUID）与服务器管理员（OP）可进行扳手拆卸、切换解锁与 GUI 频率管理。
@@ -118,7 +118,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 - 两个上限都采用“创建时”语义：`0` 禁止新建；连接已有频率、加载/修复已有端点不消耗新配额；降低上限不会删除已有数据。负值与超界整数钳制到边界并记录警告，非整数恢复默认值。
 - `wireless.pruneMissingTransceivers`：默认 `true`，见 3.13。
 - `client.*`（外观，只在客户端起作用）：`defaultTheme`（`dark`/`light`，缺省 `dark`，非法值恢复 `dark`）、`panelOpacity`（默认 `100`，`0..100`，按 10% 一档取整）、`glassArcs`（默认 `true`）、`renderEffects`（默认 `true`）、`effectRenderDistance`（默认 `32`，范围 `8..128` 格）、`simpleBlockModel`（默认 `false`）、`locateSeconds`（默认 `60`，`5..600`）、`locateThroughWalls`（默认 `true`）。在游戏内 Config 改动 `defaultTheme`、`simpleBlockModel`、`panelOpacity` 或 `glassArcs` 会重建已渲染区块。
-- 游戏内 Config 先把修改写进内存中的 `Property`，再发 `OnConfigChangedEvent`；处理器调用 `syncValues(false, false)`，**不能**再 `config.load()`，否则会从文件读回旧值、丢掉刚改的内容（v1.1.0 及以前的问题）。`/ae2wtx reload` 用 `syncValues(false, true)` 从文件读取。`client` 分类直接放在配置界面第一页，`wireless` 分类在子页。
+- 游戏内 Config 先把修改写进内存中的 `Property`，再发 `OnConfigChangedEvent`；处理器调用 `syncValues(false, false)`，**不能**再 `config.load()`，否则会从文件读回旧值、丢掉刚改的内容。`/ae2wtx reload` 用 `syncValues(false, true)` 从文件读取。`client` 分类直接放在配置界面第一页，`wireless` 分类在子页。
 - 客户端 Config 事件只在客户端代理中注册到 FML bus，避免 common/server 类路径引用客户端事件。它可即时刷新本地/集成服的功耗与上限；专用服务器修改 `config/ae2wtx.cfg` 后可用权限等级 2 的 `/ae2wtx reload` 即时刷新这些安全运行时值。跨维设置仍需完整重启。
 
 ### 3.11 数据包解码防御与空字符串语义区分 (Packet Decoder Hardening)
@@ -137,7 +137,7 @@ rv3 与 1.20.1 的 AE2 API 差异巨大，以下均为移植时确认并修复�
 
 - 名字：`TransceiverNames.clean` 去掉 `§` 格式代码（连同后一个字符）、控制字符和 BMP 以外的字符，去首尾空白，最长 32 个字符（网络上限 96 字节）；空名字即无名字。TE 保存在 NBT `name` 并随描述包同步；注册表在每个端点的 NBT 里另存一份 `name`（`endpointNames`），使未加载的收发器也能在定位列表中显示名字。端点被移除、频率被删除时名字一并丢弃。
 - 改名：`TransceiverRenamePacket`（C2S）走 `MUTATION` 队列和与主题包相同的校验；锁定时需 `TransceiverSecurity.canManage`。放置时物品有显示名（铁砧改名或扳手拆卸写入）则作为名字。
-- 清理：`LabelNetworkRegistry.pruneEndpoints(isMissingInLoadedChunk)` 在处理收发器列表请求前和服务端每 600 tick 执行。只有维度世界已加载、`chunkExists` 为真、且该位置方块不是收发器时才删除记录，因此不会加载区块，也不会误删远处未加载的收发器。存档中的这类记录是旧版本留下的（RC1 存档中 39 条有 17 条，其中 13 条在 2026-08 的备份里就已存在）。
+- 清理：`LabelNetworkRegistry.pruneEndpoints(isMissingInLoadedChunk)` 在处理收发器列表请求前和服务端每 600 tick 执行。只有维度世界已加载、`chunkExists` 为真、且该位置方块不是收发器时才删除记录，因此不会加载区块，也不会误删远处未加载的收发器。
 
 ## 4. 架构
 
@@ -193,20 +193,20 @@ cn.gtnh.ae2wtx
 - **客户端网格模拟**不可用（rv3 API 禁止第三方客户端建节点）——第三方方块贴线缆的连接点显示与 AppEU 等同类 mod 一致
 - 玩家可见频道数采用实际导线拓扑上的需求口径；它有意显示需求而非已分配数，以便超载时仍显示 `33/32`
 - CI 覆盖编译、自动化测试、静态检查与 Java 8 字节码检查；当前项目不要求目标 GTNH 客户端或专用服务器烟雾测试作为 beta3 合入与发布前置条件
-- 早期一版手写 `ISimpleBlockRenderingHandler` 曾出现缺面、透明和物品栏异常，后来改用 GTNHLib；现在的 ISBRH 统一由 `QuadWriter` 按法线修正绕序、玻璃单独放在 pass 1、物品栏显式开启混合，用来避开这几类问题
+- ISBRH 统一由 `QuadWriter` 按法线修正绕序、玻璃单独放在 pass 1、物品栏显式开启混合，避免缺面、透明和物品栏异常
 
 ## 7. 交互决策记录
 
 - 右键 = 打开 GUI；扳手右键 = 锁定；扳手潜行右键 = 拆卸（AE2 式地面掉落）
 - GUI 删除只作用于选中项，需在 60 tick 内对同一选中集合点两次；点击按钮区域不清空选择（否则无法确认）。打开期间每 40 tick 重新请求当前页。
-- 所有频率/频道操作均通过 GUI 完成（早期版本的数字频率增删交互已废弃）
-- 频道卡（设备级直连）与 plain 数字频率收发器已移除（与从端收发器功能冗余），仅保留单一收发器
+- 所有频率/频道操作均通过 GUI 完成
+- 只有一种收发器方块，没有频道卡或数字频率收发器
 
 ## 8. 开发计划
 
 ### 8.1 面板形态（AE2 部件）——已确定方向，未开工
 
-动机：只需一两个频道的机器（例如 GT ME 仓室）现在要摆一整格收发器、再拉一根线缆过去，占地且不美观。2026-10-25 与用户讨论后选定做成 AE2 部件，而不是小型节点方块：部件可以直接贴在仓室的 ME 面上，线缆和那一格都省掉；节点方块仍占一整格，只是看起来小。
+动机：只需一两个频道的机器（例如 GT ME 仓室）现在要摆一整格收发器、再拉一根线缆过去，占地且不美观。做成 AE2 部件，而不是小型节点方块：部件可以直接贴在仓室的 ME 面上，线缆和那一格都省掉；节点方块仍占一整格，只是看起来小。
 
 - **形态**：`IPart` / `IPartItem`（rv3-beta-1050-GTNH 的 `appeng.api.parts` 均已确认存在），用法同 P2P 通道或 ME 接口面板：贴在线缆上，或直接贴在机器面上（AE2 在相邻空格生成线缆总线）。
 - **与方块互转**：工作台 1:1 无序合成，方块 ↔ 面板。合成不携带 TE 数据，名字与主题不跨形态保留（与镐子挖掉一致）。
@@ -214,4 +214,4 @@ cn.gtnh.ae2wtx
 - **频道**：部件节点随所在线缆计算（普通 8、致密 32）；贴在机器面上时向该面手动建立连接，复用方块形态对 GT ME 仓室的可连接性与颜色检查。
 - **存档**：一格线缆总线最多 6 个部件，端点键需要加上朝向（`EndpointRef` 增加 side，旧数据视为方块形态）。须有读旧存档、写新存档、混合形态的单元测试，并在隔离存档上验证。
 - **外观**：薄面板加在线指示灯，不做黑洞特效；需单独实现部件渲染、碰撞箱、Waila、扳手拆卸、右键开 GUI。
-- **风险**：工作量明显大于此前改动；向机器面手动接线必须进游戏确认。按“离线测试尽量覆盖、一次交付验收”的方式推进。
+- **风险**：向机器面手动接线需进游戏确认。

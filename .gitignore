@@ -17,3 +17,6 @@ logs/
 *.key
 gitleaks-report*.json
 __pycache__/
+
+# local agent notes
+AGENTS.md
