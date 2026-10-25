@@ -23,8 +23,7 @@
 
 把 `ae2wtx-*.jar` 放进 `mods` 文件夹（更新时移走旧版）。联机时客户端和服务端都要装。
 
-需要 AE2（GTNH 分支）和 GregTech 5 Unofficial，整合包自带。Waila 为可选，用来显示方块信息。不需要 GTNHLib。
-
+需要 AE2（GTNH 分支）和 GregTech 5 Unofficial，整合包自带。
 ## 上手
 
 **合成**：8 个 ME 量子环围一圈，中间放 1 个 ME 量子链接仓。
