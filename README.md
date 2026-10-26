@@ -22,12 +22,13 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 
 | GTNH | 模组版本 | 下载 | 维护 |
 |---|---|---|:---:|
+| 2.8.4 | 1.2.0-gtnh2.8.4 | [![v1.2.0-gtnh2.8.4](https://img.shields.io/badge/release-v1.2.0--gtnh2.8.4-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.2.0-gtnh2.8.4) | ✔️ |
 | 2.9.0-beta1 | 1.0.1 – 1.0.3 | [![v1.0.3](https://img.shields.io/badge/release-v1.0.3-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.0.3) | ❌ |
 | 2.9.0-beta2 | 1.0.4 – 1.0.6 | [![v1.0.6](https://img.shields.io/badge/release-v1.0.6-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.0.6) | ❌ |
 | 2.9.0-beta3 | 1.1.0 – 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 | 2.9.0-RC1 | 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 
-RC1 之后的 GTNH 版本未测试。
+2.8.4 版不显示 AE2 网络工具中的无线连线（该版本的 AE2 没有网络工具）。RC1 之后的 GTNH 版本未测试。
 
 ## 安装
 
