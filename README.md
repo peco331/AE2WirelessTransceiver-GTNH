@@ -28,7 +28,7 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 | 2.9.0-beta3 | 1.1.0 – 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 | 2.9.0-RC1 | 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 
-2.8.4 版不显示无线连线（该版本的 AE2 没有网络可视化工具）。RC1 之后的 GTNH 版本未测试。
+RC1 之后的 GTNH 版本未测试。
 
 ## 安装
 
