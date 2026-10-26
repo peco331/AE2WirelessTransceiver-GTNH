@@ -16,7 +16,7 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 - **32 频道**：每台收发器承载 32 个频道，本身不占频道，默认 10 AE/t，与距离无关。
 - **定位**：列出一个频率下的全部收发器，在世界里透视高亮，并给出可点击的传送坐标。
 - **命名**：每台收发器可单独命名，列表、定位和 Waila 中显示。
-- **状态显示**：Waila 和界面直接写明收发器不工作的原因，如未设频率、被安全终端拒绝、网络无电。AE2 网络工具可显示无线连线。
+- **状态显示**：Waila 和界面直接写明收发器不工作的原因，如未设频率、被安全终端拒绝、网络无电。AE2 网络可视化工具可显示无线连线。
 
 ## 版本支持
 
@@ -28,7 +28,7 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 | 2.9.0-beta3 | 1.1.0 – 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 | 2.9.0-RC1 | 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 
-2.8.4 版不显示 AE2 网络工具中的无线连线（该版本的 AE2 没有网络工具）。RC1 之后的 GTNH 版本未测试。
+2.8.4 版不显示无线连线（该版本的 AE2 没有网络可视化工具）。RC1 之后的 GTNH 版本未测试。
 
 ## 安装
 
