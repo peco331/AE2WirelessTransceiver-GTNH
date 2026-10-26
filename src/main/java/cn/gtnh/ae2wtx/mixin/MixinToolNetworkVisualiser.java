@@ -18,7 +18,8 @@ import appeng.items.tools.ToolNetworkVisualiser.VNode;
 import cn.gtnh.ae2wtx.compat.NetworkVisualiserCompat;
 
 /**
- * Display-only: adds wireless band links to the AE2 network tool. Optional
+ * Display-only: adds wireless band links to the AE2 network tool. Skipped by
+ * MixinConfigPlugin when AE2 has no network tool. Optional
  * (require = 0, config not required) so an AE2 update that changes onUpdate
  * only drops these links instead of aborting game startup.
  */
