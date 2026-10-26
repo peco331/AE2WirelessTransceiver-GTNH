@@ -10,5 +10,10 @@ dependencies {
     }
     // Optional integration only: Waila must not be pulled into the runtime jar or made mandatory.
     compileOnly("com.github.GTNewHorizons:waila:1.19.34") { artifact { classifier = "dev" } }
+    // Optional integration only: the AE2 Stuff network visualiser on GTNH 2.8.x.
+    compileOnly("com.github.GTNewHorizons:ae2stuff:0.9.9-GTNH") {
+        artifact { classifier = "dev" }
+        transitive = false
+    }
     testImplementation("junit:junit:4.13.2")
 }

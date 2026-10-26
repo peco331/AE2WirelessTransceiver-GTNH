@@ -16,20 +16,20 @@ public class NetworkVisualiserAnchorTest {
         // controller-side endpoint of the main network comes later.
         List<Boolean> controllerSide = Arrays.asList(false, false, true, false);
 
-        assertEquals(2, NetworkVisualiserCompat.selectAnchorIndex(controllerSide, Boolean::booleanValue));
+        assertEquals(2, WirelessVisualLinks.selectAnchorIndex(controllerSide, Boolean::booleanValue));
     }
 
     @Test
     public void keepsCoordinateOrderAmongSeveralControllerSideEndpoints() {
         List<Boolean> controllerSide = Arrays.asList(false, true, true);
 
-        assertEquals(1, NetworkVisualiserCompat.selectAnchorIndex(controllerSide, Boolean::booleanValue));
+        assertEquals(1, WirelessVisualLinks.selectAnchorIndex(controllerSide, Boolean::booleanValue));
     }
 
     @Test
     public void fallsBackToTheFirstEndpointWithoutAController() {
         List<Boolean> controllerSide = Collections.nCopies(3, false);
 
-        assertEquals(0, NetworkVisualiserCompat.selectAnchorIndex(controllerSide, Boolean::booleanValue));
+        assertEquals(0, WirelessVisualLinks.selectAnchorIndex(controllerSide, Boolean::booleanValue));
     }
 }

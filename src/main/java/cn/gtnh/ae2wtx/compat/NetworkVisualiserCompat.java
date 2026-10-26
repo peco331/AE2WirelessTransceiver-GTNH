@@ -2,107 +2,30 @@ package cn.gtnh.ae2wtx.compat;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
 
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import net.minecraftforge.common.util.ForgeDirection;
 
-import appeng.api.networking.IGridConnection;
-import appeng.api.networking.IGridNode;
 import appeng.items.tools.ToolNetworkVisualiser.VLink;
 import appeng.items.tools.ToolNetworkVisualiser.VLinkFlags;
 import appeng.items.tools.ToolNetworkVisualiser.VNode;
-import cn.gtnh.ae2wtx.content.wireless.LabeledWirelessTransceiverBlockEntity;
-import cn.gtnh.ae2wtx.wireless.LabelNetworkRegistry;
 
 public final class NetworkVisualiserCompat {
 
     private NetworkVisualiserCompat() {}
 
-    private static final class WirelessVisualNode {
-
-        final VNode vnode;
-        final LabeledWirelessTransceiverBlockEntity transceiver;
-        final long frequency;
-
-        WirelessVisualNode(VNode vnode, LabeledWirelessTransceiverBlockEntity transceiver, long frequency) {
-            this.vnode = vnode;
-            this.transceiver = transceiver;
-            this.frequency = frequency;
-        }
-    }
-
     public static void appendWirelessVisualisationLinks(World world, ArrayList<VNode> nodes, ArrayList<VLink> links) {
-        if (world == null || nodes == null || nodes.isEmpty() || links == null) {
+        if (nodes == null || links == null) {
             return;
         }
-
-        Map<Long, List<WirelessVisualNode>> byFrequency = new HashMap<>();
-
-        for (VNode vnode : nodes) {
-            if (vnode == null) {
-                continue;
-            }
-            if (world.blockExists(vnode.x, vnode.y, vnode.z)) {
-                TileEntity te = world.getTileEntity(vnode.x, vnode.y, vnode.z);
-                if (te instanceof LabeledWirelessTransceiverBlockEntity) {
-                    LabeledWirelessTransceiverBlockEntity transceiver = (LabeledWirelessTransceiverBlockEntity) te;
-                    if (!transceiver.isInvalid()) {
-                        long freq = transceiver.getFrequency();
-                        if (freq > 0L) {
-                            byFrequency.computeIfAbsent(freq, k -> new ArrayList<>())
-                                .add(new WirelessVisualNode(vnode, transceiver, freq));
-                        }
-                    }
-                }
-            }
-        }
-
-        for (List<WirelessVisualNode> group : byFrequency.values()) {
-            if (group.size() < 2) {
-                continue;
-            }
-
-            // Stable deterministic sorting by (x, y, z) ascending
-            group.sort((n1, n2) -> {
-                if (n1.vnode.x != n2.vnode.x) return Integer.compare(n1.vnode.x, n2.vnode.x);
-                if (n1.vnode.y != n2.vnode.y) return Integer.compare(n1.vnode.y, n2.vnode.y);
-                return Integer.compare(n1.vnode.z, n2.vnode.z);
-            });
-
-            // The real hub is the band's virtual node, which has no world
-            // position. Draw the star from the endpoint that feeds the band its
-            // channels (the one whose local branch reaches an ME controller);
-            // a plain coordinate-ordered hub would make an arbitrary remote
-            // transceiver look like the centre of the network.
-            WirelessVisualNode anchor = group.get(selectAnchorIndex(group, n -> n.transceiver.hasControllerOnLocalBranch()));
-            for (WirelessVisualNode peer : group) {
-                if (peer == anchor || hasExistingLink(links, anchor.vnode, peer.vnode)) {
-                    continue;
-                }
-
-                int channels = getWirelessConnectionChannels(peer.transceiver);
-                EnumSet<VLinkFlags> flags = EnumSet.of(VLinkFlags.DENSE);
-
-                links.add(new VLink(anchor.vnode, peer.vnode, channels, flags));
-            }
-        }
-    }
-
-    /** First channel-source endpoint in the (already sorted) group, else the first endpoint. */
-    static <T> int selectAnchorIndex(List<T> sortedGroup, Predicate<T> isChannelSource) {
-        for (int i = 0; i < sortedGroup.size(); i++) {
-            if (isChannelSource.test(sortedGroup.get(i))) {
-                return i;
-            }
-        }
-        return 0;
+        WirelessVisualLinks.forEachWirelessLink(
+            world,
+            nodes,
+            n -> n.x,
+            n -> n.y,
+            n -> n.z,
+            (a, b) -> hasExistingLink(links, a, b),
+            (anchor, peer, channels) -> links.add(new VLink(anchor, peer, channels, EnumSet.of(VLinkFlags.DENSE))));
     }
 
     private static boolean isSameLocation(VNode a, VNode b) {
@@ -121,26 +44,4 @@ public final class NetworkVisualiserCompat {
         return false;
     }
 
-    private static int getWirelessConnectionChannels(LabeledWirelessTransceiverBlockEntity transceiver) {
-        if (transceiver == null) {
-            return 0;
-        }
-        IGridNode self = transceiver.getGridNode(ForgeDirection.UNKNOWN);
-        if (self != null) {
-            for (IGridConnection connection : self.getConnections()) {
-                IGridNode other = connection.getOtherSide(self);
-                if (other != null && other.getGridBlock() != null) {
-                    Object machine = other.getGridBlock().getMachine();
-                    if (machine != null) {
-                        Class<?> cls = machine.getClass();
-                        if (cls.getEnclosingClass() == LabelNetworkRegistry.class
-                            && "VirtualLabelNodeHost".equals(cls.getSimpleName())) {
-                            return connection.getUsedChannels();
-                        }
-                    }
-                }
-            }
-        }
-        return transceiver.getUsedChannelsForDisplay();
-    }
 }
