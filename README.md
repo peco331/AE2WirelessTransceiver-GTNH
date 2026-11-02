@@ -6,7 +6,6 @@
 
 GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收发器，它们所在的 ME 网络连为一体：不限距离，可跨维度，可多台互连。
 
-适用 Minecraft 1.7.10。
 
 [下载](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) · [更新日志](CHANGELOG.md) · [技术文档](docs/TECHNICAL.md) · [反馈问题](https://github.com/peco331/AE2WirelessTransceiver-GTNH/issues)
 
@@ -29,7 +28,6 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 | 2.9.0-RC1 | 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 | 2.9.0 | 1.2.0 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 
-2.9.0 之后的 GTNH 版本未测试。
 
 ## 安装
 
