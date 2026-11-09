@@ -21,7 +21,7 @@ GT New Horizons 的 ME 无线连接方块。设成同一个**频率名**的收�
 
 | GTNH | 模组版本 | 下载 | 维护 |
 |---|---|---|:---:|
-| 2.8.4 | 1.2.0-gtnh2.8.4 | [![v1.2.0-gtnh2.8.4](https://img.shields.io/badge/release-v1.2.0--gtnh2.8.4-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.2.0-gtnh2.8.4) | ✔️ |
+| 2.8.4 | 1.2.1-gtnh2.8.4 | [![v1.2.1-gtnh2.8.4](https://img.shields.io/badge/release-v1.2.1--gtnh2.8.4-orange)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/tag/v1.2.1-gtnh2.8.4) | ✔️ |
 | 2.9.0-RC1 | 1.2.1 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 | 2.9.0 | 1.2.1 | [![Latest](https://img.shields.io/github/v/release/peco331/AE2WirelessTransceiver-GTNH)](https://github.com/peco331/AE2WirelessTransceiver-GTNH/releases/latest) | ✔️ |
 
