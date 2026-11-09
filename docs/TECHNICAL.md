@@ -12,7 +12,7 @@
   - 连接器 `LabelLink`（收发器节点 ↔ 频率虚拟节点）
   - 管理 GUI 的交互（新建/删除/设定/断开、搜索、信息面板）；布局与贴图已重做
   - Waila/Jade 显示结构、锁定/拆卸交互
-- 第三方组件：AE2（MIT）、GT5-Unofficial、SpongePowered Mixin（MIT）
+- 第三方组件：AE2（MIT）、SpongePowered Mixin（MIT）
 - 美术资源：方块模型、贴图与 GUI 贴图为原创，由 `tools/art/generate_assets.py` 生成（早期版本使用的 Light Mode 材质已全部移除）
 
 ## 2. 构建
@@ -32,7 +32,7 @@ $env:VERSION = "1.2.0"
 - Wrapper 下载包固定 SHA-256；构建使用 JDK 25，Jabel 生成 Java 8（class major `52`）字节码
 - GitHub Actions 执行同一 `clean build` 并扫描产物中的 class major；按照当前项目验收策略，自动化测试、构建和静态资源检查是合入与发布依据，不把真实 GTNH 客户端/专服烟雾测试作为阻塞条件
 - Mixin 基础设施启用（`usesMixins=true`），注册 `MixinToolNetworkVisualiser` 拦截网络可视化数据包
-- 必需依赖：`Applied-Energistics-2-Unofficial:rv3-beta-1050-GTNH`（匹配 GTNH 2.9.0-beta3 目标运行时）、`GT5-Unofficial:5.09.54.133`
+- 必需依赖：`Applied-Energistics-2-Unofficial:rv3-beta-1050-GTNH`（匹配 GTNH 2.9.0-beta3 目标运行时）
 - 不依赖 GTNHLib：方块外观由自带的 `ISimpleBlockRenderingHandler` 与 TESR 绘制（见第 5 节）
 - Waila `1.19.34` 仅以 `compileOnly` 编译可选兼容，不会被打包或声明为运行时必需依赖
 - `processResources` 将根目录 `LICENSE` 与 `THIRD_PARTY_NOTICES.md` 收入发布 JAR 的 `META-INF/`

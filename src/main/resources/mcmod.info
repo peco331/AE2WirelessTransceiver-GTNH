@@ -17,12 +17,10 @@
       "screenshots": [],
       "parent": "",
       "requiredMods": [
-        "appliedenergistics2",
-        "gregtech"
+        "appliedenergistics2"
       ],
       "dependencies": [
-        "appliedenergistics2",
-        "gregtech"
+        "appliedenergistics2"
       ],
       "dependants": [],
       "useDependencyInformation": false

@@ -15,7 +15,7 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLInterModComms;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import gregtech.api.util.GTModHandler;
+import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraftforge.common.MinecraftForge;
 
 public class CommonProxy {
@@ -47,10 +47,9 @@ public class CommonProxy {
         if (ring == null || link == null) {
             AE2Wtx.LOG.warn("AE2 quantum ring/link not found, skipping wireless transceiver recipe");
         } else {
-            GTModHandler.addCraftingRecipe(
+            GameRegistry.addShapedRecipe(
                 new ItemStack(ModBlocks.blockWirelessTransceiver),
-                GTModHandler.RecipeBits.BITS_STD,
-                new Object[] { "RRR", "RLR", "RRR", 'R', ring, 'L', link });
+                "RRR", "RLR", "RRR", 'R', ring, 'L', link);
         }
     }
 }
